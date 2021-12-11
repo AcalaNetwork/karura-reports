@@ -17,6 +17,10 @@ output:
 
 library(flexdashboard)
 library(ggplot2)
+library(shiny)
+library(lubridate)
+library(magrittr)
+
 
 # To avoid error messages in plot areas
 library(showtext)
@@ -43,7 +47,10 @@ library("ghql")
 x <- GraphqlClient$new()
 
 endpoint <- "https://api.polkawallet.io/acala-subql"
-window <- 8 # days to read in (latest day plus 7 day average)
+window <- 7 # days to read in (latest day plus 7 day average)
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
 
 # Used to color the valueBoxes
 getColor <- function(status) {
@@ -62,7 +69,7 @@ cli <- GraphqlClient$new(
 )
 
 
-mindate <- today(tzone = 'UTC') - window
+mindate <- today(tzone = 'UTC') - window - 1
 
 ### create a query class first
 qry <- Query$new()
