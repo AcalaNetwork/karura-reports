@@ -1,0 +1,1204 @@
+---
+title: "Karura Swap Performance"
+runtime: shiny
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    theme: 
+      bg: "#fff"
+      fg: "#000"
+      primary: "#EB6864"
+      base_font: !expr bslib::font_google("Prompt")
+      code_font: !expr bslib::font_google("JetBrains Mono")
+    source_code: embed
+---
+
+```{r, include=FALSE}
+
+library(flexdashboard)
+library(ggplot2)
+
+# To avoid error messages in plot areas
+library(showtext)
+showtext_auto()
+
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+# thematic::thematic_rmd(
+#   font = "auto",
+#   # To get the dark bg on the geom_raster()
+#   sequential = thematic::sequential_gradient(fg_low = FALSE, fg_weight = 0, bg_weight = 1)
+# )
+# theme_set(theme_bw(base_size = 6))
+
+
+# remotes::install_github("ropensci/ghql") # if package is not already installed
+library(jsonlite)
+library(data.table)
+library("ghql")
+x <- GraphqlClient$new()
+
+endpoint <- "https://api.polkawallet.io/acala-subql"
+window <- 8 # days to read in (latest day plus 7 day average)
+
+# Used to color the valueBoxes
+getColor <- function(status) {
+  ifelse(status >= 1, "success", ifelse(status >= .5, "warning", "danger"))
+}
+
+# make a client
+cli <- GraphqlClient$new(
+  url = endpoint,
+  headers = list("Accept-Encoding: gzip, deflate, br",
+                 "Content-Type: application/json",
+                 "Accept: application/json",
+                 "Connection: keep-alive",
+                 "DNT: 1",
+                 "Origin: https://api.polkawallet.io")
+)
+
+
+mindate <- today(tzone = 'UTC') - window
+
+### create a query class first
+qry <- Query$new()
+qry$query('dexActions', '{
+  query {
+    dexActions(filter: {timestamp: {greaterThanOrEqualTo: "' %+% mindate %+% '"}}) {
+      nodes {
+        timestamp
+        id
+        nodeId
+        accountId
+        type
+        token0Id
+        token1Id
+        token0Amount
+        token1Amount
+        volumeUSD
+        extrinsicId
+        data
+      }
+    }
+  }
+}')
+result <- cli$exec(qry$queries$dexActions) %>%
+  fromJSON(flatten=TRUE)
+res <- as.data.table(result$data$query$dexActions$nodes)
+
+# Make sure we have 8 full days of data (compare latest day to prior 7 days)
+maxdate <- mindate + days(7)
+res <- res[timestamp <= maxdate]
+# min(res$timestamp)
+# max(res$timestamp)
+
+# add share field to res
+# d <- list()
+# for (i in 1:nrow(res)) {
+#   if (res[['type']][[i]] == 'swap') {
+#     d[[i]] <- NA
+#   } else {
+#     tmp <- res$data[[i]][['value']]
+#     d[[i]] <- tmp[6]
+#   }
+# }
+# out <- unlist(d)
+# res[, share := out]
+res[, data := NULL]
+res[, date := as.Date(timestamp)]
+setorder(res, timestamp)
+
+# Create pairs
+res[, pair := paste0(res$token0Id, ":", res$token1Id)]
+# Normalize pairs
+res[pair == "KSM:KAR",  pair := "KAR:KSM"]
+res[pair == "KSM:LKSM", pair := "LKSM:KSM"]
+res[pair == "KSM:KUSD", pair := "KUSD:KSM"]
+res[pair == "LKSM:KAR", pair := "KAR:LKSM"]
+res[pair == "LKSM:KUSD",pair := "KUSD:LKSM"]
+res[pair == "LKSM:BNC", pair := "BNC:LKSM"]
+res[pair == "BNC:KAR",  pair := "KAR:BNC"]
+res[pair == "BNC:LKSM", pair := "LKSM:BNC"]
+res[pair == "BNC:KUSD", pair := "KUSD:BNC"]
+res[pair == "KAR:KUSD", pair := "KUSD:KAR"]
+res[pair == "BNC:KSM",  pair := "KSM:BNC"]
+
+# res[type == 'swap', .N, by = pair]
+
+# Number active users
+activeUsers <- res[!duplicated(accountId), .N, by = date] %>%
+  setnames(c("Date","Active Users"))
+
+activeUsersPair <- res[!duplicated(accountId), .N, by = .(pair, date)] %>%
+  setnames(c("Pair","Date","Active Users")) %>%
+  setorder("Pair","Date")
+
+activeUsersPairStatus <- round(tail(activeUsers$`Active Users`, 1) / mean(head(activeUsers$`Active Users`, window - 1)), 1)
+
+# Number of trades
+trades <- res[type == 'swap', .N, by = date] %>%
+  setnames(c("Date","Trades"))
+
+tradesPair <- res[type == 'swap', .N, by = .(pair, date)] %>%
+  setnames(c("Pair","Date","Trades")) %>%
+  setorder("Pair","Date")
+
+# Avg trades per user
+avgTrade <- merge(trades, activeUsers, by = 'Date')
+avgTrade[, `Trades per user` := round(Trades / `Active Users`, 1)]
+
+avgTradePair <- merge(tradesPair, activeUsersPair, by = c('Pair', 'Date'))
+avgTradePair[, `Trades per user` := round(Trades / `Active Users`, 1)] %>%
+  setorder("Pair","Date")
+
+# Trading Volume
+tradeVolume <- res[type == 'swap', sum(as.numeric(volumeUSD) / 1e12 / 1e6), by = date] %>%
+  setnames(c("Date","Trading Volume"))
+
+tradeVolumePair <- res[type == 'swap', sum(as.numeric(volumeUSD) / 1e12 / 1e6), by = .(pair, date)] %>%
+  setnames(c("Pair","Date","Trading Volume")) %>%
+  setorder("Pair","Date")
+
+# Fees
+fees <- res[type == 'swap', sum(as.numeric(volumeUSD) / 1e12 / 1e6) * .003, by = date] %>%
+  setnames(c("Date","Fees"))
+
+feesPair <- res[type == 'swap', sum(as.numeric(volumeUSD) / 1e12 / 1e6) * .003, by = .(pair, date)] %>%
+  setnames(c("Pair","Date","Fees")) %>%
+  setorder("Pair","Date")
+
+# helper function
+calc <- function(pair) {
+
+  if (pair == "ALL") {  
+    
+    d_activeUsers <- activeUsers
+    d_trades <- trades
+    d_avgTrade <- avgTrade
+    d_tradeVolume <- tradeVolume
+    d_fees <- fees
+
+    activeUsersAvg <- mean(head(activeUsers$`Active Users`, window - 1))
+    activeUsersStatus <- round(tail(activeUsers$`Active Users`, 1) / activeUsersAvg, 1)
+    
+    tradesAvg <- mean(head(trades$`Trades`, window - 1))
+    tradesStatus <- round(tail(trades$`Trades`, 1) / tradesAvg, 1)
+    
+    avgTradeAvg <- mean(head(avgTrade$`Trades per user`, window - 1))
+    avgTradeStatus <- round(tail(avgTrade$`Trades per user`, 1) / avgTradeAvg, 1)
+    
+    tradeVolumeAvg <- mean(head(tradeVolume$`Trading Volume`, window - 1))
+    tradeVolumeStatus <- round(tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg, 1)
+    
+    feesAvg <- mean(head(fees$`Fees`, window - 1))
+    feesStatus <- round(tail(fees$`Fees`, 1) / feesAvg, 1)
+
+  } else {
+
+    d_activeUsers <- activeUsersPair[Pair == pair]
+    d_trades <- tradesPair[Pair == pair]
+    d_avgTrade <- avgTradePair[Pair == pair]
+    d_tradeVolume <- tradeVolumePair[Pair == pair]
+    d_fees <- feesPair[Pair == pair]
+
+    activeUsersAvg <- mean(head(d_activeUsers$`Active Users`, window - 1))
+    activeUsersStatus <- round(tail(d_activeUsers$`Active Users`, 1) / activeUsersAvg, 1)
+    
+    tradesAvg <- mean(head(d_trades$`Trades`, window - 1))
+    tradesStatus <- round(tail(d_trades$`Trades`, 1) / tradesAvg, 1)
+    
+    avgTradeAvg <- mean(head(d_avgTrade$`Trades per use`, window - 1))
+    avgTradeStatus <- round(tail(d_avgTrade$`Trades per user`, 1) / avgTradeAvg, 1)
+    
+    tradeVolumeAvg <- mean(head(d_tradeVolume$`Trading Volume`, window - 1))
+    tradeVolumeStatus <- round(tail(d_tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg, 1)
+    
+    feesAvg <- mean(head(d_fees$`Fees`, window - 1))
+    feesStatus <- round(tail(d_fees$`Fees`, 1) / feesAvg, 1)
+
+  } 
+
+    return(list(d_activeUsers = d_activeUsers,
+                d_trades = d_trades,
+                d_avgTrade = d_avgTrade,
+                d_tradeVolume = d_tradeVolume,
+                d_fees = d_fees,
+                activeUsersAvg = activeUsersAvg, 
+                activeUsersStatus = activeUsersStatus,
+                tradesAvg = tradesAvg, 
+                tradesStatus = tradesStatus,
+                avgTradeAvg = avgTradeAvg, 
+                avgTradeStatus = avgTradeStatus,
+                tradeVolumeAvg = tradeVolumeAvg, 
+                tradeVolumeStatus = tradeVolumeStatus,
+                feesAvg = feesAvg, 
+                feesStatus = feesStatus))
+                
+}
+
+```
+
+# Aggregate
+
+## test
+```{r}
+pair <- "ALL"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+pair <- "ALL"
+pair0 <- calc(pair)
+
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# KAR:KSM
+
+## test
+```{r}
+pair <- "KAR:KSM"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# KUSD:KSM
+
+## test
+```{r}
+pair <- "KUSD:KSM"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# KUSD:KAR
+
+## test
+```{r}
+pair <- "KUSD:KAR"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# LKSM:KSM
+
+## test
+```{r}
+pair <- "LKSM:KSM"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# KSM:BNC
+
+## test
+```{r}
+pair <- "KSM:BNC"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# KUSD:LKSM
+
+## test
+```{r}
+pair <- "KUSD:LKSM"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# KUSD:BNC
+
+## test
+```{r}
+pair <- "KUSD:BNC"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# KAR:LKSM
+
+## test
+```{r}
+pair <- "KAR:LKSM"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# KAR:BNC
+
+## test
+```{r}
+pair <- "KAR:BNC"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# LKSM:BNC
+
+## test
+```{r}
+pair <- "LKSM:BNC"
+pair0 <- calc(pair)
+mypair = pair
+```
+
+<br><br><br>Performance measures are ratio of most recent day versus average of the prior `r window` days, based on `r res[pair == mypair & type == 'swap', .N]` observations for pair `r pair` from `r min(res$timestamp)` to `r max(res$timestamp)` according to data extracted from [SubQuery Network](https://subquery.network/).
+
+## Value Boxes {data-width=200}
+
+### Active Users 
+
+```{r}
+valueBox(pair0$activeUsersStatus, caption = "Active Users (" %+% pair %+% ")", color = getColor(pair0$activeUsersStatus))
+```
+
+### Trades
+
+```{r}
+valueBox(pair0$tradesStatus, caption = "Trades", color = getColor(pair0$tradesStatus))
+```
+
+### Trades per user
+
+```{r}
+valueBox(pair0$avgTradeStatus, caption = "Average Trades per User", color = getColor(pair0$avgTradeStatus))
+```
+
+### Trading volume
+
+```{r}
+valueBox(pair0$tradeVolumeStatus, caption = "Trading Volume (USD)", color = getColor(pair0$tradeVolumeStatus))
+```
+
+---
+
+## Column {style="height:100pc;"}
+
+### Active Users
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_activeUsers$`Active Users`, names = pair0$d_activeUsers$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) +
+        abline(h = pair0$activeUsersAvg)
+renderPlot(p)
+```
+
+### Trades
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_trades$`Trades`, names = pair0$d_trades$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradesAvg)
+renderPlot(p)
+```
+
+### Average Trades per User
+
+```{r, fig.showtext=TRUE}
+p <- barplot(height = pair0$d_avgTrade$`Trades per user`, names = pair0$d_avgTrade$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$avgTradeAvg)
+renderPlot(p)
+```
+
+### Trading Volume in USD
+
+```{r}
+p <- barplot(height = pair0$d_tradeVolume$`Trading Volume`, names = pair0$d_tradeVolume$Date, 
+          col=rgb(0.8,0.1,0.1,0.6),
+          ylab="", 
+          las=2) + 
+        abline(h = pair0$tradeVolumeAvg)
+renderPlot(p)
+```
+
+# Data 
+
+## Row {style="height:100pc;"}
+
+<br><br><br><br><br>
+
+### data
+
+```{r, fig.width=19, fig.height=19}
+library(tidyverse)
+library(DT)
+create_dt <- function(x){
+  DT::datatable(x,
+                extensions = 'Buttons',
+                options = list(dom = 'Blfrtip',
+                               buttons = c('copy', 'csv', 'excel'),
+                               lengthMenu = list(c(25,50,-1),
+                                                 c(25,50,"All"))))
+}
+create_dt(res)
+```
+
