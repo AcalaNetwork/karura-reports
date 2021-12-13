@@ -159,7 +159,7 @@ renderPlot({
     setnames(c("Date","Active Users"))
 
   activeUsersAvg <- mean(head(activeUsers$`Active Users`, nrow(activeUsers) - 1))
-  activeUsersStatus <- round(tail(activeUsers$`Active Users`, 1) / activeUsersAvg, 1)
+  activeUsersStatus <- round(tail(activeUsers$`Active Users`, 2) / activeUsersAvg, 1)
 
   if (activeUsersStatus < 1) {
     txt <- " down " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
@@ -187,7 +187,7 @@ renderPlot({
     setnames(c("Date","Trades"))
   
   tradesAvg <- mean(head(trades$`Trades`, nrow(trades) - 1))
-  tradesStatus <- round(tail(trades$`Trades`, 1) / tradesAvg, 1)
+  tradesStatus <- round(tail(trades$`Trades`, 1) / tradesAvg, 2)
 
   if (tradesStatus < 1) {
     txt <- " down " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
@@ -222,10 +222,10 @@ renderPlot({
     setnames(c("Date","Trades"))
 
   avgTrade <- merge(trades, activeUsers, by = 'Date')
-  avgTrade[, `Trades per user` := round(Trades / `Active Users`, 1)]
+  avgTrade[, `Trades per user` := round(Trades / `Active Users`, 2)]
   
   avgTradeAvg <- mean(head(avgTrade$`Trades per user`, nrow(trades) - 1))
-  avgTradeStatus <- round(tail(avgTrade$`Trades per user`, 1) / avgTradeAvg, 1)
+  avgTradeStatus <- round(tail(avgTrade$`Trades per user`, 2) / avgTradeAvg, 1)
 
   if (avgTradeStatus < 1) {
     txt <- " down " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
@@ -254,7 +254,7 @@ renderPlot({
     setnames(c("Date","Trading Volume"))
   
   tradeVolumeAvg <- mean(head(tradeVolume$`Trading Volume`, nrow(tradeVolume) - 1))
-  tradeVolumeStatus <- round(tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg, 1)
+  tradeVolumeStatus <- round(tail(tradeVolume$`Trading Volume`, 2) / tradeVolumeAvg, 1)
 
   if (tradeVolumeStatus < 1) {
     txt <- " down " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
