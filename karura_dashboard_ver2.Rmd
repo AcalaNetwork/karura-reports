@@ -1,0 +1,291 @@
+---
+title: "Karura Swap Performance"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+runtime: shiny
+---
+
+
+```{r global, include=FALSE}
+
+library(lubridate)
+library(flexdashboard)
+library(DT)
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+# Helper function to download data
+create_dt <- function(x){
+  DT::datatable(x,
+                extensions = 'Buttons',
+                options = list(dom = 'Blfrtip',
+                               buttons = c('copy', 'csv', 'excel'),
+                               lengthMenu = list(c(10, 50, -1),
+                                                 c(10, 50, "All"))))
+}
+
+# helper function to color the bars in the charts (green, yellow, & red)
+getColor <- function(status) {
+  ifelse(status >= 1, "#34FF33", ifelse(status >= .5, "#FFC300", "#FF5733"))
+}
+
+# remotes::install_github("ropensci/ghql") # if package is not already installed
+library(jsonlite)
+library(data.table)
+library("ghql")
+x <- GraphqlClient$new()
+
+endpoint <- "https://api.polkawallet.io/acala-subql"
+window <- 15 # days to read in (latest day plus 7 day average)
+
+# make a client
+cli <- GraphqlClient$new(
+  url = endpoint,
+  headers = list("Accept-Encoding: gzip, deflate, br",
+                 "Content-Type: application/json",
+                 "Accept: application/json",
+                 "Connection: keep-alive",
+                 "DNT: 1",
+                 "Origin: https://api.polkawallet.io")
+)
+
+
+mindate <- today(tzone = 'UTC') - window
+
+### create a query class first
+qry <- Query$new()
+qry$query('dexActions', '{
+  query {
+    dexActions(filter: {timestamp: {greaterThanOrEqualTo: "' %+% mindate %+% '"}}) {
+      nodes {
+        timestamp
+        id
+        nodeId
+        accountId
+        type
+        token0Id
+        token1Id
+        token0Amount
+        token1Amount
+        volumeUSD
+        extrinsicId
+        data
+      }
+    }
+  }
+}')
+result <- cli$exec(qry$queries$dexActions) %>%
+  fromJSON(flatten=TRUE)
+res <- as.data.table(result$data$query$dexActions$nodes)
+
+if (substr(max(res$timestamp), 12, 13) < 23) {
+  maxdate <- as.Date(max(res$timestamp))-1
+} else {
+  maxdate <- as.Date(max(res$timestamp))
+}
+
+# Make sure we have 8 full days of data (compare latest day to prior 7 days)
+res <- res[timestamp <= maxdate]
+
+res[, data := NULL]
+res[, date := as.Date(timestamp)]
+setorder(res, timestamp)
+
+# Create pairs
+res[, pair := paste0(res$token0Id, ":", res$token1Id)]
+# Normalize pairs
+res[pair == "KSM:KAR",  pair := "KAR:KSM"]
+res[pair == "KSM:LKSM", pair := "LKSM:KSM"]
+res[pair == "KSM:KUSD", pair := "KUSD:KSM"]
+res[pair == "LKSM:KAR", pair := "KAR:LKSM"]
+res[pair == "LKSM:KUSD",pair := "KUSD:LKSM"]
+res[pair == "LKSM:BNC", pair := "BNC:LKSM"]
+res[pair == "BNC:KAR",  pair := "KAR:BNC"]
+res[pair == "BNC:LKSM", pair := "LKSM:BNC"]
+res[pair == "BNC:KUSD", pair := "KUSD:BNC"]
+res[pair == "KAR:KUSD", pair := "KUSD:KAR"]
+res[pair == "BNC:KSM",  pair := "KSM:BNC"]
+
+pairs <- rbind(res[type == 'swap', .N, by = pair], data.table(pair="ALL", N = res[, .N]))[order(N, decreasing = TRUE)] %>% 
+  setnames(c("Pair", "Observations"))
+
+res0 <<- res
+
+```
+
+
+# Inputs {.sidebar}
+
+```{r}
+
+# res0 <- fread("~/res.csv")
+
+selectInput("pair", 
+            label = "Select Trading Pair",
+            choices = c("ALL", sort(unique(res0$pair))), 
+            selected = 1)
+
+  
+renderTable(pairs)
+
+selectInput("xdays", 
+            label = "Comparison Window (days)",
+            choices = 5:14, 
+            selected = 7)
+
+xdays <- reactive({input$xdays})
+
+res <- reactive({
+  
+  # max(res0$date) - 7
+  mywindow <- as.numeric(xdays()) # mywindow <- 7
+  mypair <- input$pair # mypair = "KAR:BNC"
+  if (input$pair == "ALL") return(res0[date >= max(res0$date) - mywindow])
+  res0[pair == mypair & date >= max(res0$date) - mywindow]
+
+})
+
+renderText({"Start Date: " %+% min(res()$timestamp)})
+renderText({"End Date: " %+% max(res()$timestamp)})
+
+```
+
+# Pairs {.tabset}
+Row
+----
+
+### Daily Active Users
+
+```{r}
+renderPlot({
+
+  activeUsers <- res()[!duplicated(accountId), .N, by = date] %>%
+    setnames(c("Date","Active Users"))
+
+  activeUsersAvg <- mean(head(activeUsers$`Active Users`, nrow(activeUsers) - 1))
+  activeUsersStatus <- round(tail(activeUsers$`Active Users`, 1) / activeUsersAvg, 1)
+
+  if (activeUsersStatus < 1) {
+    txt <- " down " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
+  }
+  
+  p <- barplot(height = activeUsers$`Active Users`, names = activeUsers$Date,
+          col=getColor(activeUsersStatus),
+          ylab="",
+          main = "Active Users" %+% txt,
+          las=2) +
+        abline(h = activeUsersAvg)
+  p
+
+})
+```
+
+### Daily Trades
+
+```{r}
+renderPlot({
+
+  trades <- res()[type == 'swap', .N, by = date] %>%
+    setnames(c("Date","Trades"))
+  
+  tradesAvg <- mean(head(trades$`Trades`, nrow(trades) - 1))
+  tradesStatus <- round(tail(trades$`Trades`, 1) / tradesAvg, 1)
+
+  if (tradesStatus < 1) {
+    txt <- " down " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
+  }
+
+  p <- barplot(height = trades$`Trades`, names = trades$Date,
+          col=getColor(tradesStatus),
+          ylab="",
+          main = "Trades" %+% txt,
+          las=2) +
+        abline(h = tradesAvg)
+  p
+
+})
+
+```
+
+Row 
+----
+
+### Daily Trades Per User
+
+```{r}
+renderPlot({
+
+  activeUsers <- res()[!duplicated(accountId), .N, by = date] %>%
+    setnames(c("Date","Active Users"))
+  
+  trades <- res()[type == 'swap', .N, by = date] %>%
+    setnames(c("Date","Trades"))
+
+  avgTrade <- merge(trades, activeUsers, by = 'Date')
+  avgTrade[, `Trades per user` := round(Trades / `Active Users`, 1)]
+  
+  avgTradeAvg <- mean(head(avgTrade$`Trades per user`, nrow(trades) - 1))
+  avgTradeStatus <- round(tail(avgTrade$`Trades per user`, 1) / avgTradeAvg, 1)
+
+  if (avgTradeStatus < 1) {
+    txt <- " down " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
+  }
+
+  p <- barplot(height = avgTrade$`Trades per user`, names = avgTrade$Date,
+          col=getColor(avgTradeStatus),
+          ylab="",
+          main = "Trades Per User" %+% txt,
+          las=2) +
+        abline(h = avgTradeAvg)
+  p
+
+})
+
+```
+
+### Daily Trading Volume
+
+```{r}
+renderPlot({
+
+  tradeVolume <- res()[type == 'swap', sum(as.numeric(volumeUSD) / 1e12 / 1e6), by = date] %>%
+    setnames(c("Date","Trading Volume"))
+  
+  tradeVolumeAvg <- mean(head(tradeVolume$`Trading Volume`, nrow(tradeVolume) - 1))
+  tradeVolumeStatus <- round(tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg, 1)
+
+  if (tradeVolumeStatus < 1) {
+    txt <- " down " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% xdays() %+% "D Avg"
+  }
+  
+  p <- barplot(height = tradeVolume$`Trading Volume`, names = tradeVolume$Date,
+          col=getColor(tradeVolumeStatus),
+          ylab="",
+          main = "Trading Volume" %+% txt,
+          las=2) +
+        abline(h = tradeVolumeAvg)
+  p
+
+})
+
+```
+
+# Data
+
+```{r}
+DT::renderDataTable({create_dt(res())})
+```
+
