@@ -1,0 +1,181 @@
+---
+title: "Karura Swap Performance"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: fill
+params:
+  pair:
+    value: "ALL"
+  xdays:
+    value: 7
+---
+
+
+```{r init, include=FALSE}
+
+library(rmarkdown)
+library(flexdashboard)
+library(DT)
+
+# spacer for numbers above bar on barplot
+pad <- .9
+
+xdays <- params$xdays
+
+if (params$pair == "ALL") {
+  resx <- res[date >= max(res$date) - xdays]
+} else {
+  resx <- res[pair == params$pair & date >= max(res$date) - xdays]
+}
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+# Helper function to download data
+create_dt <- function(x){
+  DT::datatable(x,
+                extensions = 'Buttons',
+                options = list(dom = 'Blfrtip',
+                               buttons = c('copy', 'csv', 'excel'),
+                               lengthMenu = list(c(10, 50, -1),
+                                                 c(10, 50, "All"))))
+}
+
+# helper function to color the bars in the charts (green, yellow, & red)
+getColor <- function(status) {
+  ifelse(status >= 1, "#34FF33", ifelse(status >= .5, "#FFC300", "#FF5733"))
+}
+
+```
+
+
+# Pairs {.tabset}
+Row
+----
+
+### Daily Active Users
+
+```{r}
+
+  activeUsers <- resx[!duplicated(accountId), .N, by = date] %>%
+    setnames(c("Date","Active Users"))
+
+  u_list <<- activeUsers$`Active Users`
+  
+  activeUsersAvg <- mean(head(activeUsers$`Active Users`, nrow(activeUsers) - 1))
+  activeUsersStatus <<- round(tail(activeUsers$`Active Users`, 1) / activeUsersAvg, 1)
+
+  if (activeUsersStatus < 1) {
+    txt <- " down " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+  }
+  
+  p1 <- barplot(height = activeUsers$`Active Users`, names = activeUsers$Date,
+          col=getColor(activeUsersStatus),
+          ylab="",
+          main = "Active Users" %+% txt,
+          las=2)
+        abline(h = activeUsersAvg, col="grey")
+        text(p1, activeUsers$`Active Users`*pad, format(round(activeUsers$`Active Users`, 1), TRUE)) 
+```
+
+### Daily Trades
+
+```{r}
+
+  trades <- resx[type == 'swap', .N, by = date] %>%
+    setnames(c("Date","Trades"))
+
+  t_list <<- trades$`Trades`
+  
+  tradesAvg <- mean(head(trades$`Trades`, nrow(trades) - 1))
+  tradesStatus <<- round(tail(trades$`Trades`, 1) / tradesAvg, 2)
+
+  if (tradesStatus < 1) {
+    txt <- " down " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+  }
+
+  p2 <- barplot(height = trades$`Trades`, names = trades$Date,
+          col=getColor(tradesStatus),
+          ylab="",
+          main = "Trades" %+% txt,
+          las=2)
+        abline(h = tradesAvg, col="grey")
+        text(p2, trades$`Trades`*pad, format(round(trades$`Trades`, 1), TRUE)) 
+
+```
+
+Row 
+----
+
+### Daily Trades Per User
+
+```{r}
+
+  activeUsers <- resx[!duplicated(accountId), .N, by = date] %>%
+    setnames(c("Date","Active Users"))
+  
+  trades <- resx[type == 'swap', .N, by = date] %>%
+    setnames(c("Date","Trades"))
+
+  avgTrade <- merge(trades, activeUsers, by = 'Date')
+  avgTrade[, `Trades per user` := round(Trades / `Active Users`, 1)]
+  
+  p_list <<- avgTrade$`Trades per user`
+  
+  avgTradeAvg <- mean(head(avgTrade$`Trades per user`, nrow(trades) - 1))
+  avgTradeStatus <<- round(tail(avgTrade$`Trades per user`, 1) / avgTradeAvg, 1)
+
+  if (avgTradeStatus < 1) {
+    txt <- " down " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+  }
+
+  p3 <- barplot(height = avgTrade$`Trades per user`, names = avgTrade$Date,
+          col=getColor(avgTradeStatus),
+          ylab="",
+          main = "Trades Per User" %+% txt,
+          las=2)
+        abline(h = avgTradeAvg, col="grey")
+        text(p3, avgTrade$`Trades per user`*pad, format(round(avgTrade$`Trades per user`, 1),  TRUE))
+
+```
+
+### Daily Trading Volume
+
+```{r}
+
+  tradeVolume <- resx[type == 'swap', sum(as.numeric(volumeUSD) / 1e12 / 1e6), by = date] %>%
+    setnames(c("Date","Trading Volume"))
+  
+  v_list <<- tradeVolume$`Trading Volume`
+  
+  tradeVolumeAvg <- mean(head(tradeVolume$`Trading Volume`, nrow(tradeVolume) - 1))
+  tradeVolumeStatus <<- round(tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg, 1)
+
+  if (tradeVolumeStatus < 1) {
+    txt <- " down " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+  }
+  
+  p4 <- barplot(height = tradeVolume$`Trading Volume`, names = tradeVolume$Date,
+          col=getColor(tradeVolumeStatus),
+          ylab="",
+          main = "Trading Volume" %+% txt,
+          las=2)
+        abline(h = tradeVolumeAvg, col="grey")
+        text(p4, tradeVolume$`Trading Volume`*pad, format(round(tradeVolume$`Trading Volume`, 0), TRUE)) 
+
+```
+
+# Data
+
+```{r}
+create_dt(resx)
+```
