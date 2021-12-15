@@ -110,7 +110,6 @@ res[pair == "BNC:KSM",  pair := "KSM:BNC"]
 pairs <- rbind(res[type == 'swap', .N, by = pair], data.table(pair="ALL", N = res[, .N]))[order(N, decreasing = TRUE)] %>% 
   setnames(c("Pair", "Observations"))
 
-
 # Calculate measures for each pair
 user_status   <- list()
 trades_status <- list()
@@ -183,8 +182,6 @@ for (p in pairs$Pair) {
     column_spec(10, image = spec_plot(volume_list, same_lim = FALSE))
 
 ```
-
-# Plot
 
 ```{r plot, results='asis'}
 p

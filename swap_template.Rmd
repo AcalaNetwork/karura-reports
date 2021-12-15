@@ -91,7 +91,7 @@ Row
   t_list <<- trades$`Trades`
   
   tradesAvg <- mean(head(trades$`Trades`, nrow(trades) - 1))
-  tradesStatus <<- round(tail(trades$`Trades`, 1) / tradesAvg, 2)
+  tradesStatus <<- round(tail(trades$`Trades`, 1) / tradesAvg, 1)
 
   if (tradesStatus < 1) {
     txt <- " down " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
