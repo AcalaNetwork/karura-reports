@@ -1,0 +1,192 @@
+---
+title: "Karura Swap Performance"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+runtime: shiny
+---
+
+```{r global, include=FALSE}
+
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+library(kableExtra)
+library(formattable)
+library(lubridate)
+library(flexdashboard)
+library(DT)
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+# helper function to color the bars in the charts (green, yellow, & red)
+getColor <- function(status) {
+  ifelse(status >= 1, "#34FF33", ifelse(status >= .5, "#FFC300", "#FF5733"))
+}
+
+# remotes::install_github("ropensci/ghql") # if package is not already installed
+library(jsonlite)
+library(data.table)
+library("ghql")
+x <- GraphqlClient$new()
+
+endpoint <- "https://api.polkawallet.io/acala-subql"
+window <- 8 # days to read in (latest day plus 7 day average)
+
+# make a client
+cli <- GraphqlClient$new(
+  url = endpoint,
+  headers = list("Accept-Encoding: gzip, deflate, br",
+                 "Content-Type: application/json",
+                 "Accept: application/json",
+                 "Connection: keep-alive",
+                 "DNT: 1",
+                 "Origin: https://api.polkawallet.io")
+)
+
+
+mindate <- today(tzone = 'UTC') - window
+
+### create a query class first
+qry <- Query$new()
+qry$query('dexActions', '{
+  query {
+    dexActions(filter: {timestamp: {greaterThanOrEqualTo: "' %+% mindate %+% '"}}) {
+      nodes {
+        timestamp
+        id
+        nodeId
+        accountId
+        type
+        token0Id
+        token1Id
+        token0Amount
+        token1Amount
+        volumeUSD
+        extrinsicId
+        data
+      }
+    }
+  }
+}')
+result <- cli$exec(qry$queries$dexActions) %>%
+  fromJSON(flatten=TRUE)
+res <- as.data.table(result$data$query$dexActions$nodes)
+
+if (substr(max(res$timestamp), 12, 13) < 23) {
+  maxdate <- as.Date(max(res$timestamp))-1
+} else {
+  maxdate <- as.Date(max(res$timestamp))
+}
+
+res <- res[timestamp <= maxdate]
+
+res[, data := NULL]
+res[, date := as.Date(timestamp)]
+setorder(res, timestamp)
+
+# Create pairs
+res[, pair := paste0(res$token0Id, ":", res$token1Id)]
+# Normalize pairs
+res[pair == "KSM:KAR",  pair := "KAR:KSM"]
+res[pair == "KSM:LKSM", pair := "LKSM:KSM"]
+res[pair == "KSM:KUSD", pair := "KUSD:KSM"]
+res[pair == "LKSM:KAR", pair := "KAR:LKSM"]
+res[pair == "LKSM:KUSD",pair := "KUSD:LKSM"]
+res[pair == "LKSM:BNC", pair := "BNC:LKSM"]
+res[pair == "BNC:KAR",  pair := "KAR:BNC"]
+res[pair == "BNC:LKSM", pair := "LKSM:BNC"]
+res[pair == "BNC:KUSD", pair := "KUSD:BNC"]
+res[pair == "KAR:KUSD", pair := "KUSD:KAR"]
+res[pair == "BNC:KSM",  pair := "KSM:BNC"]
+
+pairs <- rbind(res[type == 'swap', .N, by = pair], data.table(pair="ALL", N = res[, .N]))[order(N, decreasing = TRUE)] %>% 
+  setnames(c("Pair", "Observations"))
+
+
+# Calculate measures for each pair
+user_status   <- list()
+trades_status <- list()
+tpu_status    <- list()
+volume_status <- list()
+
+users_list  <- list()
+trades_list <- list()
+per_list    <- list()
+volume_list <- list()
+
+for (p in pairs$Pair) {
+  
+  try(rm(u_list, t_list, tpu_list, v_list), silent = TRUE)
+  
+  outname <- "swap_" %+% p %+% ".html"
+  unlink(outname)
+  # Create report for each pair
+  rmarkdown::render("~/R_HOME/karura-reports/Swap_template.Rmd",
+                  output_file = outname,
+                  params = list(pair = p))
+  
+  # Store the data for the table
+  user_status[p]   <- activeUsersStatus
+  trades_status[p] <- tradesStatus
+  tpu_status[p]    <- avgTradeStatus
+  volume_status[p] <- tradeVolumeStatus
+  
+  users_list[[p]]  <- u_list
+  trades_list[[p]] <- t_list
+  per_list[[p]]    <- p_list
+  volume_list[[p]] <- v_list
+
+}
+
+  d <- list()
+  for (x in pairs$Pair) {
+    d[x] <- paste0('<span class="footText"><a CLASS="nav" href="/swap_', 
+                     x, 
+                     '.html">', 
+                     x, 
+                     '</a></span>', collapse = "")
+  }
+
+  inline_plot <- data.frame(N = pairs$Observations, 
+                            Active = unlist(user_status),
+                            Users = "",
+                            Swap = unlist(trades_status),
+                            Trades = "",
+                            Trades_Per = unlist(tpu_status),
+                            User = "",
+                            Trading = unlist(volume_status),
+                            Volume = "")
+  row.names(inline_plot) <- unlist(d)
+
+  inline_plot$Active <- cell_spec(inline_plot$Active, color = ifelse(inline_plot$Active < 1, "red", "green"))
+
+  inline_plot$Swap <- cell_spec(inline_plot$Swap, color = ifelse(inline_plot$Swap < 1, "red", "green"))
+  
+  inline_plot$Trades_Per <- cell_spec(inline_plot$Trades_Per, color = ifelse(inline_plot$Trades_Per < 1, "red", "green"))
+
+  inline_plot$Trading <- cell_spec(inline_plot$Trading, color = ifelse(inline_plot$Trading < 1, "red", "green"))
+
+  p <- inline_plot %>%
+    kbl(booktabs = TRUE, escape = FALSE) %>%
+    kable_paper(full_width = FALSE) %>%
+    column_spec(4, image = spec_plot(users_list, same_lim = FALSE)) %>%
+    column_spec(6, image = spec_plot(trades_list, same_lim = FALSE)) %>%
+    column_spec(8, image = spec_plot(per_list, same_lim = FALSE)) %>%
+    column_spec(10, image = spec_plot(volume_list, same_lim = FALSE))
+
+```
+
+# Plot
+
+```{r plot, results='asis'}
+p
+```
+
