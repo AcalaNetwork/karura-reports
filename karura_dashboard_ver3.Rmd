@@ -126,7 +126,7 @@ for (p in pairs$Pair) {
   
   try(rm(u_list, t_list, tpu_list, v_list), silent = TRUE)
   
-  outname <- "swap_" %+% p %+% ".html"
+  outname <- "~/R_HOME/websites/web_acala/content/swap_" %+% p %+% ".html"
   unlink(outname)
   # Create report for each pair
   rmarkdown::render("~/R_HOME/karura-reports/Swap_template.Rmd",
