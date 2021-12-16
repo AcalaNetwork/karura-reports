@@ -176,6 +176,6 @@ Row
 
 # Data
 
-```{r}
+```{r, out.height = 12}
 create_dt(resx)
 ```
