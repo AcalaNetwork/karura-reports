@@ -102,6 +102,8 @@ setorder(res, timestamp)
 
 # Create pairs
 res[, pair := paste0(res$token0Id, ":", res$token1Id)]
+res[, exclude := token0Id == token1Id]
+
 # Normalize pairs
 res[pair == "KSM:KAR",  pair := "KAR:KSM"]
 res[pair == "KSM:LKSM", pair := "LKSM:KSM"]
@@ -115,8 +117,10 @@ res[pair == "BNC:KUSD", pair := "KUSD:BNC"]
 res[pair == "KAR:KUSD", pair := "KUSD:KAR"]
 res[pair == "BNC:KSM",  pair := "KSM:BNC"]
 
-pairs <- rbind(res[type == 'swap', .N, by = pair], data.table(pair="ALL", N = res[, .N]))[order(N, decreasing = TRUE)] %>% 
+pairs <- rbind(res[exclude == FALSE & type == 'swap', .N, by = pair], data.table(pair="ALL", N = res[, .N]))[order(N, decreasing = TRUE)] %>% 
   setnames(c("Pair", "Observations"))
+
+
 
 
 # Calculate measures for each pair
@@ -132,9 +136,9 @@ volume_list <- list()
 
 for (p in pairs$Pair) {
   
-  try(rm(u_list, t_list, tpu_list, v_list), silent = TRUE)
+  try(rm(u_list, t_list, p_list, v_list), silent = TRUE)
   
-  outname <- "swap_" %+% p %+% ".html"
+  outname <- "~/R_HOME/websites/web_acala/content/swap_" %+% p %+% ".html"
   unlink(outname)
   # Create report for each pair
   rmarkdown::render("~/R_HOME/karura-reports/Swap_template.Rmd",
@@ -192,9 +196,9 @@ for (p in pairs$Pair) {
 
 ```
 
-# Plot
+### Summary
 
-```{r plot, results='asis'}
+```{r plot, result='asis', out.height = 12}
 p
 ```
 
