@@ -9,6 +9,12 @@ output:
 runtime: shiny
 ---
 
+```{css custom1, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
+
 ```{r global, include=FALSE}
 
 knitr::opts_chunk$set(
@@ -25,6 +31,7 @@ library(DT)
 
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
+
 
 # helper function to color the bars in the charts (green, yellow, & red)
 getColor <- function(status) {
@@ -194,3 +201,8 @@ for (p in pairs$Pair) {
 p
 ```
 
+Last updated: `r Sys.time()`
+
+Date range of data: `r min(res$timestamp)` to `r max(res$timestamp)`.
+
+Source: [SubQuery Network](https://explorer.subquery.network/)
