@@ -51,34 +51,42 @@ cli <- GraphqlClient$new(
                  "Origin: https://api.polkawallet.io")
 )
 
-
 mindate <- today(tzone = 'UTC') - window
 
-### create a query class first
-qry <- Query$new()
-qry$query('dexActions', '{
-  query {
-    dexActions(filter: {timestamp: {greaterThanOrEqualTo: "' %+% mindate %+% '"}}) {
-      nodes {
-        timestamp
-        id
-        nodeId
-        accountId
-        type
-        token0Id
-        token1Id
-        token0Amount
-        token1Amount
-        volumeUSD
-        extrinsicId
-        data
+resList <- list()
+for (i in 1:1000) {
+  offset <- i * 100
+  qry <- Query$new()
+  qry$query('dexActions', '{
+    query {
+      dexActions(filter: {timestamp: {greaterThanOrEqualTo: "' %+% mindate %+% '"}}
+            			first: 100
+      						offset: ' %+% offset %+% ') {
+        nodes {
+          timestamp
+          id
+          nodeId
+          accountId
+          type
+          token0Id
+          token1Id
+          token0Amount
+          token1Amount
+          volumeUSD
+          extrinsicId
+          data
+        }
       }
     }
-  }
-}')
-result <- cli$exec(qry$queries$dexActions) %>%
-  fromJSON(flatten=TRUE)
-res <- as.data.table(result$data$query$dexActions$nodes)
+  }')
+  result <- cli$exec(qry$queries$dexActions) %>%
+    fromJSON(flatten=TRUE)
+  res <- as.data.table(result$data$query$dexActions$nodes)
+  print(i %+% " " %+% nrow(res))
+  if (nrow(res) == 0) break
+  resList[[i]] <- res
+}
+res <- rbindlist(resList)
 
 if (substr(max(res$timestamp), 12, 13) < 23) {
   maxdate <- as.Date(max(res$timestamp))-1
