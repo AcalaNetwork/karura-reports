@@ -107,28 +107,41 @@ res[, data := NULL]
 res[, date := as.Date(timestamp)]
 setorder(res, timestamp)
 
+# Replace foreign assets
+res[token0Id == 'fa://0', token0Id := 'RMRK']
+res[token1Id == 'fa://0', token1Id := 'RMRK']
+
 # Create pairs
 res[, pair := paste0(res$token0Id, ":", res$token1Id)]
 res[, exclude := token0Id == token1Id]
+
+sort(unique(res$pair))
 
 # Normalize pairs
 res[pair == "KSM:KAR",  pair := "KAR:KSM"]
 res[pair == "KSM:LKSM", pair := "LKSM:KSM"]
 res[pair == "KSM:KUSD", pair := "KUSD:KSM"]
+
 res[pair == "LKSM:KAR", pair := "KAR:LKSM"]
 res[pair == "LKSM:KUSD",pair := "KUSD:LKSM"]
 res[pair == "LKSM:BNC", pair := "BNC:LKSM"]
+
 res[pair == "BNC:KAR",  pair := "KAR:BNC"]
 res[pair == "BNC:LKSM", pair := "LKSM:BNC"]
 res[pair == "BNC:KUSD", pair := "KUSD:BNC"]
+
 res[pair == "KAR:KUSD", pair := "KUSD:KAR"]
 res[pair == "BNC:KSM",  pair := "KSM:BNC"]
+res[pair == "BNC:KSM",  pair := "KSM:BNC"]
+
+res[pair == "RMRK:BNC", pair := "BNC:RMRK"]
+res[pair == "RMRK:KAR", pair := "KAR:RMRK"]
+res[pair == "RMRK:KSM", pair := "KSM:RMRK"]
+res[pair == "RMRK:KUSD", pair := "KUSD:RMRK"]
+res[pair == "RMRK:LKSM", pair := "LKSM:RMRK"]
 
 pairs <- rbind(res[exclude == FALSE & type == 'swap', .N, by = pair], data.table(pair="ALL", N = res[, .N]))[order(N, decreasing = TRUE)] %>% 
   setnames(c("Pair", "Observations"))
-
-
-
 
 # Calculate measures for each pair
 user_status   <- list()
