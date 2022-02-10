@@ -3,7 +3,7 @@ title: "Karura Swap Performance"
 output:
   flexdashboard::flex_dashboard:
     orientation: rows
-    vertical_layout: fill
+    vertical_layout: scroll
 params:
   pair:
     value: "ALL"
@@ -11,6 +11,11 @@ params:
     value: 7
 ---
 
+```{css custom2, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
 
 ```{r init, include=FALSE}
 
@@ -174,8 +179,8 @@ Row
 
 ```
 
-# Data
+# Data 
 
-```{r, out.height = 12}
+```{r}
 create_dt(resx)
 ```
