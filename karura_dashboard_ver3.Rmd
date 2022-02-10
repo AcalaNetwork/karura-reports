@@ -37,7 +37,7 @@ library(data.table)
 library("ghql")
 x <- GraphqlClient$new()
 
-endpoint <- "https://api.polkawallet.io/acala-subql"
+endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura" # "https://api.polkawallet.io/acala-subql"
 window <- 8 # days to read in (latest day plus 7 day average)
 
 # make a client
