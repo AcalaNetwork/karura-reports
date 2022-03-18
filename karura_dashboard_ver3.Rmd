@@ -41,7 +41,7 @@ getColor <- function(status) {
 # remotes::install_github("ropensci/ghql") # if package is not already installed
 library(jsonlite)
 library(data.table)
-library("ghql")
+library(ghql)
 x <- GraphqlClient$new()
 
 endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura" # "https://api.polkawallet.io/acala-subql"
@@ -81,7 +81,6 @@ for (i in 1:1000) {
           token1Amount
           volumeUSD
           extrinsicId
-          data
         }
       }
     }
@@ -139,6 +138,14 @@ res[pair == "RMRK:KAR", pair := "KAR:RMRK"]
 res[pair == "RMRK:KSM", pair := "KSM:RMRK"]
 res[pair == "RMRK:KUSD", pair := "KUSD:RMRK"]
 res[pair == "RMRK:LKSM", pair := "LKSM:RMRK"]
+
+if (FALSE) {
+  res[, block := substr(id, 1, 7)]
+  res[block == "1523203"]
+  
+  
+}
+
 
 pairs <- rbind(res[exclude == FALSE & type == 'swap', .N, by = pair], data.table(pair="ALL", N = res[, .N]))[order(N, decreasing = TRUE)] %>% 
   setnames(c("Pair", "Observations"))

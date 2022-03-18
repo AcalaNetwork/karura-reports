@@ -1,83 +1,56 @@
 ---
-title: "Karura Swap Performance"
+title: "Swap Performance"
 output:
   flexdashboard::flex_dashboard:
     orientation: rows
     vertical_layout: scroll
 params:
-  pair: "ALL"
-  xdays: 14
+  pair: "AUSD:LCDOT"
+  xdays: 28
+  madays: 7
+  
 ---
 
 ```{css custom2, echo=FALSE}
 .dataTables_scrollBody {
     max-height: 100% !important;
 }
-
-
-
 ```
 
 ```{r init, include=FALSE}
 
 library(rmarkdown)
 library(flexdashboard)
-library(DT)
+# library(DT)
 library(dygraphs)
 
 
-# spacer for numbers above bar on barplot
-pad <- .9
-
 xdays <- params$xdays
+madays <- params$madays
 
 if (params$pair == "ALL") {
-  resx <- res[date >= max(res$date) - xdays]
+  resx <- swaps[date >= max(res$date) - xdays]
 } else {
-  resx <- res[pair == params$pair & date >= max(res$date) - xdays]
+  resx <- swaps[pair1==params$pair | pair2==params$pair | pair3==params$pair & date >= max(res$date) - xdays]
 }
 
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
-# Helper function to download data
-create_dt <- function(x){
-  DT::datatable(x,
-                extensions = 'Buttons',
-                options = list(dom = 'Blfrtip',
-                               buttons = c('copy', 'csv', 'excel'),
-                               lengthMenu = list(c(10, 50, -1),
-                                                 c(10, 50, "All"))))
-}
+# # Helper function to download data
+# create_dt <- function(x){
+#   DT::datatable(x,
+#                 extensions = 'Buttons',
+#                 options = list(dom = 'Blfrtip',
+#                                buttons = c('copy', 'csv', 'excel'),
+#                                lengthMenu = list(c(10, 50, -1),
+#                                                  c(10, 50, "All"))))
+# }
 
-# helper function to color the bars in the charts (green, yellow, & red)
-getColor <- function(status) {
-  ifelse(status >= 1, "#34FF33", ifelse(status >= .5, "#FFC300", "#FF5733"))
-}
-
-barChartPlotter <<- "function barChartPlotter(e) {
-                var ctx = e.drawingContext;
-                var points = e.points;
-                var y_bottom = e.dygraph.toDomYCoord(0);  // see     http://dygraphs.com/jsdoc/symbols/Dygraph.html#toDomYCoord
-
-                // This should really be based on the minimum gap
-                var bar_width = 2/3 * (points[1].canvasx - points[0].canvasx);
-                ctx.fillStyle = e.color;
-
-                // Do the actual plotting.
-                for (var i = 0; i < points.length; i++) {
-                  var p = points[i];
-                  var center_x = p.canvasx;  // center of the bar
-
-                  ctx.fillRect(center_x - bar_width / 2, p.canvasy,
-                               bar_width, y_bottom - p.canvasy);
-                  ctx.strokeRect(center_x - bar_width / 2, p.canvasy,
-                                 bar_width, y_bottom - p.canvasy);
-                }
-}"
+# helper function to color the bars in the charts (green, red)
+getColor <- function(status) ifelse(status >= 1, "green", "red")
 
 ```
-
 
 # Pairs {.tabset}
 Row
@@ -91,19 +64,20 @@ Row
     setnames(c("Date","Active Users"))
 
   u_list <<- activeUsers$`Active Users`
+  activeUsers[, `Average` := frollmean(`Active Users`, madays)]  
   
-  activeUsersAvg <- mean(head(activeUsers$`Active Users`, nrow(activeUsers) - 1))
-  activeUsersStatus <<- round(tail(activeUsers$`Active Users`, 1) / activeUsersAvg, 1)
+  activeUsersAvg <- tail(activeUsers$Average, 1)
+  activeUsersStatus <<- round(tail(activeUsers$`Active Users`, 1) / activeUsersAvg, 2)
 
   if (activeUsersStatus < 1) {
-    txt <- " down " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+    txt <- " down " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   } else {
-    txt <- " up " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+    txt <- " up " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   }
   
 dygraph(activeUsers, main = "Active Users" %+% txt)  %>% 
-  dyRoller(rollPeriod = 7) %>%
-  dyOptions(useDataTimezone = TRUE, plotter = barChartPlotter)
+  dySeries("Active Users", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
+  dySeries("Average", color = "blue") 
 
 ```
 
@@ -115,19 +89,20 @@ dygraph(activeUsers, main = "Active Users" %+% txt)  %>%
     setnames(c("Date","Trades"))
 
   t_list <<- trades$`Trades`
+  trades[, `Average` := frollmean(`Trades`, madays)]  
   
-  tradesAvg <- mean(head(trades$`Trades`, nrow(trades) - 1))
-  tradesStatus <<- round(tail(trades$`Trades`, 1) / tradesAvg, 1)
+  tradesAvg <- tail(trades$Average, 1)
+  tradesStatus <<- round(tail(trades$`Trades`, 1) / tradesAvg, 2)
 
   if (tradesStatus < 1) {
-    txt <- " down " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+    txt <- " down " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   } else {
-    txt <- " up " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+    txt <- " up " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   }
 
   dygraph(trades, main = "Trades" %+% txt)  %>% 
-    dyRoller(rollPeriod = 7) %>%
-    dyOptions(useDataTimezone = TRUE, plotter = barChartPlotter)
+    dySeries("Trades", stepPlot = TRUE, fill = TRUE, color = getColor(tradesStatus)) %>%
+    dySeries("Average", color = "blue") 
 
 ```
 
@@ -148,21 +123,53 @@ Row
   avgTrade[, `Trades per user` := round(Trades / `Active Users`, 1)]
   
   p_list <<- avgTrade$`Trades per user`
+  avgTrade[, `Average` := frollmean(`Trades per user`, madays)]  
   
-  avgTradeAvg <- mean(head(avgTrade$`Trades per user`, nrow(trades) - 1))
-  avgTradeStatus <<- round(tail(avgTrade$`Trades per user`, 1) / avgTradeAvg, 1)
+  avgTradeAvg <- tail(avgTrade$Average, 1)
+  avgTradeStatus <<- round(tail(avgTrade$`Trades per user`, 1) / avgTradeAvg, 2)
 
   if (avgTradeStatus < 1) {
-    txt <- " down " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+    txt <- " down " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   } else {
-    txt <- " up " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+    txt <- " up " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   }
 
+  avgTrade[, Trades := NULL]
+  avgTrade[, `Active Users` := NULL]
+
   dygraph(avgTrade, main = "Trades Per User" %+% txt)  %>% 
-    dyRoller(rollPeriod = 7) %>%
-    dyOptions(useDataTimezone = TRUE, plotter = barChartPlotter)
+    dySeries("Trades per user", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
+    dySeries("Average", color = "blue") 
 
 ```
+
+### Daily Fees in USD
+
+```{r}
+
+  fees <- resx[, sum(fee), by = date] %>%
+    setnames(c("Date","Swap Fees"))
+
+  # u_list <<- activeUsers$`Active Users`
+  fees[, `Average` := frollmean(`Swap Fees`, madays)]  
+  
+  feesAvg <- tail(fees$Average, 1)
+  feesStatus <<- round(tail(fees$`Swap Fees`, 1) / feesAvg, 2)
+
+  if (feesStatus < 1) {
+    txt <- " down " %+% as.character((feesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((feesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
+  }
+  
+dygraph(fees, main = "Swap Fees" %+% txt)  %>% 
+  dySeries("Swap Fees", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
+  dySeries("Average", color = "blue") 
+
+```
+
+Row
+---
 
 ### Daily Trading Volume
 
@@ -172,24 +179,52 @@ Row
     setnames(c("Date","Trading Volume"))
   
   v_list <<- tradeVolume$`Trading Volume`
+  tradeVolume[, `Average` := frollmean(`Trading Volume`, madays)]  
   
-  tradeVolumeAvg <- mean(head(tradeVolume$`Trading Volume`, nrow(tradeVolume) - 1))
-  tradeVolumeStatus <<- round(tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg, 1)
+  tradeVolumeAvg <- tail(tradeVolume$Average, 1)
+  tradeVolumeStatus <<- round(tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg, 2)
 
   if (tradeVolumeStatus < 1) {
-    txt <- " down " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+    txt <- " down " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   } else {
-    txt <- " up " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
+    txt <- " up " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   }
 
   dygraph(tradeVolume, main = "Trading Volume" %+% txt)  %>% 
-    dyRoller(rollPeriod = 7) %>%
-    dyOptions(useDataTimezone = TRUE, plotter = barChartPlotter)
+    dySeries("Trading Volume", stepPlot = TRUE, fill = TRUE, color = getColor(tradeVolumeStatus)) %>%
+    dySeries("Average", color = "blue") 
 
 ```
 
-# Data 
+
+### Daily Volume / Total Value Locked Ratio
 
 ```{r}
-create_dt(resx)
+  
+  tvl <- swaps2[pair == params$pair, .(date, tvlUSD)] %>% 
+    setnames("date","Date")
+
+  tradeVolume <- resx[, sum(as.numeric(volumeUSD) / 1e12 / 1e6), by = date] %>%
+    setnames(c("Date","Trading Volume"))
+  tvl <- merge(tradeVolume, tvl, by ="Date")
+  tvl[, "Volume To TVL" := `Trading Volume` / tvlUSD]
+   
+  tvl[, `Average` := frollmean(`Volume To TVL`, madays)]  
+  
+  volumeToTVLAvg <- tail(tvl$Average, 1)
+  volumeToTVLStatus <<- round(tail(tvl$`Average`, 1) / volumeToTVLAvg, 2)
+
+  if (volumeToTVLStatus < 1) {
+    txt <- " down " %+% as.character((volumeToTVLStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character((volumeToTVLStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
+  }
+
+  tvl[, `Trading Volume` := NULL]
+  tvl[, `tvlUSD` := NULL]
+  
+  dygraph(tvl, main = "Volume To TVL" %+% txt)  %>% 
+    dySeries("Volume To TVL", stepPlot = TRUE, fill = TRUE, color = getColor(volumeToTVLStatus)) %>%
+    dySeries("Average", color = "blue") 
+
 ```

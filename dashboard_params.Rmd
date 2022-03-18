@@ -276,23 +276,59 @@ window <- params$window
 endpoint <- params$endpoint
 network <- params$network
 
-# window <- 14; network <- "Karura"; endpoint <- karura_swap_endpoint
-
-# swaps_by_day <- getSwapsByDay(endpoint, window)
-# pairs_by_day <- rbind(swaps_by_day[, .N, by = pair], data.table(pair="ALL", N = swaps_by_day[, .N]))[order(N, decreasing = TRUE)] %>% 
-#   setnames(c("Pair", "Observations"))
-
+swaps2 <- getSwapsByDay(endpoint, window)
 swaps <- getSwaps(endpoint, window)
-pairs <- rbind(swaps[exclude == FALSE, .N, by = pair], data.table(pair="ALL", N = swaps[, .N]))[order(N, decreasing = TRUE)] %>%
+d <- list()
+for (i in 1:nrow(swaps)) {
+  
+  tmp <- swaps[['data']][[i]][['value']]
+  swapAccount <- tmp[[1]]
+  test <- fromJSON(tmp[[2]])
+  token <- test[[1]]
+  if (length(test) > 1) {
+    alt <- test[[2]]
+    token[is.na(token)] <- alt[is.na(token)]  
+  }
+  token <- sub("13", "LCDOT", token)
+  amount <- fromJSON(tmp[[3]])
+  while (length(token) < 4) {
+    token <- c(token, NA)
+    amount <- c(amount, NA)
+  }
+  out <- data.table(swapAccount, t(token), t(amount)) %>%
+    setnames(c("swapAccount", "token0", "token1", "token2", "token3", "amount0", "amount1", "amount2", "amount3"))
+  d[[i]] <- out
+  
+}
+out <- rbindlist(d)
+swaps <- cbind(swaps, out)
+swaps[, data := NULL]
+
+swaps[, pair1 := paste0(token0 %+% ":" %+% token1)]
+swaps[, pair2 := paste0(token1 %+% ":" %+% token2)]
+swaps[, pair3 := paste0(token2 %+% ":" %+% token3)]
+swaps[token1 < token0, pair1 := paste0(token1 %+% ":" %+% token0)]
+swaps[token2 < token1, pair2 := paste0(token2 %+% ":" %+% token1)]
+swaps[token3 < token2, pair3 := paste0(token3 %+% ":" %+% token2)]
+
+# swaps[pair1=='ACA:AUSD' | pair2=='ACA:AUSD' | pair3=='ACA:AUSD', .N, by = date]
+
+pairs <- rbind(swaps[exclude == FALSE, .N, by = pair1] %>% setnames("pair1", "Pair"),
+              swaps[exclude == FALSE, .N, by = pair2] %>% setnames("pair2", "Pair"),
+              swaps[exclude == FALSE, .N, by = pair3] %>% setnames("pair3", "Pair"))
+pairs <- pairs[, sum(N), by = Pair]
+# remove pairs with NA in them
+pairs <- pairs[-grep("NA", pairs$Pair)]
+pairs <- rbind(data.table(Pair = "ALL", V1 = sum(pairs$V1)), pairs)
+pairs <- pairs[order(V1, decreasing = TRUE)] %>%
   setnames(c("Pair", "Observations"))
 
 ####
 
-res <- swaps
-res[, paths := as.factor(pathLength)]
+swaps[, paths := as.factor(pathLength)]
 
-cols <- c("date","pair","paths","volumeUSDFloat")
-res2 <- res[exclude == FALSE, ..cols]
+# cols <- c("date","pair","paths","volumeUSDFloat")
+# res2 <- swaps[exclude == FALSE, ..cols]
 
 # Calculate measures for each pair
 user_status   <- list()
@@ -308,6 +344,7 @@ volume_list <- list()
 # remove old params object before calling render with new params list
 rm(params)
 for (p in pairs$Pair) {
+  # p <- pairs$Pair[3]
   
   try(rm(u_list, t_list, p_list, v_list), silent = TRUE)
   
