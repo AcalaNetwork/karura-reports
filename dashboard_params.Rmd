@@ -415,7 +415,7 @@ p
 
 Last updated: `r Sys.time()`
 
-Date range of data: `r min(res$timestamp)` to `r max(res$timestamp)`.
+Date range of data: `r min(swap$timestamp)` to `r max(swap$timestamp)`.
 
 Sources: 
 [SubQuery Network](https://explorer.subquery.network/)
