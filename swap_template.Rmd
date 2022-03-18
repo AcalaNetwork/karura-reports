@@ -5,16 +5,17 @@ output:
     orientation: rows
     vertical_layout: scroll
 params:
-  pair:
-    value: "ALL"
-  xdays:
-    value: 7
+  pair: "ALL"
+  xdays: 14
 ---
 
 ```{css custom2, echo=FALSE}
 .dataTables_scrollBody {
     max-height: 100% !important;
 }
+
+
+
 ```
 
 ```{r init, include=FALSE}
@@ -22,6 +23,8 @@ params:
 library(rmarkdown)
 library(flexdashboard)
 library(DT)
+library(dygraphs)
+
 
 # spacer for numbers above bar on barplot
 pad <- .9
@@ -52,6 +55,27 @@ getColor <- function(status) {
   ifelse(status >= 1, "#34FF33", ifelse(status >= .5, "#FFC300", "#FF5733"))
 }
 
+barChartPlotter <<- "function barChartPlotter(e) {
+                var ctx = e.drawingContext;
+                var points = e.points;
+                var y_bottom = e.dygraph.toDomYCoord(0);  // see     http://dygraphs.com/jsdoc/symbols/Dygraph.html#toDomYCoord
+
+                // This should really be based on the minimum gap
+                var bar_width = 2/3 * (points[1].canvasx - points[0].canvasx);
+                ctx.fillStyle = e.color;
+
+                // Do the actual plotting.
+                for (var i = 0; i < points.length; i++) {
+                  var p = points[i];
+                  var center_x = p.canvasx;  // center of the bar
+
+                  ctx.fillRect(center_x - bar_width / 2, p.canvasy,
+                               bar_width, y_bottom - p.canvasy);
+                  ctx.strokeRect(center_x - bar_width / 2, p.canvasy,
+                                 bar_width, y_bottom - p.canvasy);
+                }
+}"
+
 ```
 
 
@@ -77,20 +101,17 @@ Row
     txt <- " up " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
   }
   
-  p1 <- barplot(height = activeUsers$`Active Users`, names = activeUsers$Date,
-          col=getColor(activeUsersStatus),
-          ylab="",
-          main = "Active Users" %+% txt,
-          las=2)
-        abline(h = activeUsersAvg, col="grey")
-        text(p1, activeUsers$`Active Users`*pad, format(round(activeUsers$`Active Users`, 1), TRUE)) 
+dygraph(activeUsers, main = "Active Users" %+% txt)  %>% 
+  dyRoller(rollPeriod = 7) %>%
+  dyOptions(useDataTimezone = TRUE, plotter = barChartPlotter)
+
 ```
 
 ### Daily Trades
 
 ```{r}
 
-  trades <- resx[type == 'swap', .N, by = date] %>%
+  trades <- resx[, .N, by = date] %>%
     setnames(c("Date","Trades"))
 
   t_list <<- trades$`Trades`
@@ -104,13 +125,9 @@ Row
     txt <- " up " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
   }
 
-  p2 <- barplot(height = trades$`Trades`, names = trades$Date,
-          col=getColor(tradesStatus),
-          ylab="",
-          main = "Trades" %+% txt,
-          las=2)
-        abline(h = tradesAvg, col="grey")
-        text(p2, trades$`Trades`*pad, format(round(trades$`Trades`, 1), TRUE)) 
+  dygraph(trades, main = "Trades" %+% txt)  %>% 
+    dyRoller(rollPeriod = 7) %>%
+    dyOptions(useDataTimezone = TRUE, plotter = barChartPlotter)
 
 ```
 
@@ -124,7 +141,7 @@ Row
   activeUsers <- resx[!duplicated(accountId), .N, by = date] %>%
     setnames(c("Date","Active Users"))
   
-  trades <- resx[type == 'swap', .N, by = date] %>%
+  trades <- resx[, .N, by = date] %>%
     setnames(c("Date","Trades"))
 
   avgTrade <- merge(trades, activeUsers, by = 'Date')
@@ -141,13 +158,9 @@ Row
     txt <- " up " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
   }
 
-  p3 <- barplot(height = avgTrade$`Trades per user`, names = avgTrade$Date,
-          col=getColor(avgTradeStatus),
-          ylab="",
-          main = "Trades Per User" %+% txt,
-          las=2)
-        abline(h = avgTradeAvg, col="grey")
-        text(p3, avgTrade$`Trades per user`*pad, format(round(avgTrade$`Trades per user`, 1),  TRUE))
+  dygraph(avgTrade, main = "Trades Per User" %+% txt)  %>% 
+    dyRoller(rollPeriod = 7) %>%
+    dyOptions(useDataTimezone = TRUE, plotter = barChartPlotter)
 
 ```
 
@@ -155,7 +168,7 @@ Row
 
 ```{r}
 
-  tradeVolume <- resx[type == 'swap', sum(as.numeric(volumeUSD) / 1e12 / 1e6), by = date] %>%
+  tradeVolume <- resx[, sum(as.numeric(volumeUSD) / 1e12 / 1e6), by = date] %>%
     setnames(c("Date","Trading Volume"))
   
   v_list <<- tradeVolume$`Trading Volume`
@@ -168,14 +181,10 @@ Row
   } else {
     txt <- " up " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% xdays %+% "D Avg"
   }
-  
-  p4 <- barplot(height = tradeVolume$`Trading Volume`, names = tradeVolume$Date,
-          col=getColor(tradeVolumeStatus),
-          ylab="",
-          main = "Trading Volume" %+% txt,
-          las=2)
-        abline(h = tradeVolumeAvg, col="grey")
-        text(p4, tradeVolume$`Trading Volume`*pad, format(round(tradeVolume$`Trading Volume`, 0), TRUE)) 
+
+  dygraph(tradeVolume, main = "Trading Volume" %+% txt)  %>% 
+    dyRoller(rollPeriod = 7) %>%
+    dyOptions(useDataTimezone = TRUE, plotter = barChartPlotter)
 
 ```
 
