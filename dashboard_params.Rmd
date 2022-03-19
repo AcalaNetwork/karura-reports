@@ -1,5 +1,5 @@
 ---
-title: "Acala Dashboards"
+title: "Acala / Karura Dashboards"
 output:
   flexdashboard::flex_dashboard:
     orientation: rows
@@ -7,9 +7,9 @@ output:
     social: menu
     source_code: embed
 params:
-  endpoint: "https://api.subquery.network/sq/rogerjbos/acala-swap-day-data"
-  network: Acala
-  window: 14
+  endpoint: "https://api.subquery.network/sq/rogerjbos/karura-swap-data"
+  network: Karura
+  window: 60
 ---
 
 ```{css custom1, echo=FALSE}
@@ -74,7 +74,7 @@ getSwaps <- function(endpoint, window) {
         dexActions (filter: {timestamp: {greaterThanOrEqualTo: "' %+% mindate %+% '"}, type: {equalTo: "swap"}} ' %+% cursorStr %+% ') {
           totalCount
           edges {
-            node { timestamp id nodeId accountId token0Id token1Id token0Amount token1Amount token0Price token1Price volumeUSD volumeUSDFloat pathLength data
+            node { timestamp id accountId token0Id token1Id  volumeUSDFloat pathLength data
             }
             cursor
           }
@@ -154,8 +154,6 @@ getSwapsByDay <- function(endpoint, window) {
                 date
                 token0Id 
                 token1Id 
-                token0Amount 
-                token1Amount 
                 volumeUSD
                 tvlUSD
                 feeUSD
@@ -415,7 +413,7 @@ p
 
 Last updated: `r Sys.time()`
 
-Date range of data: `r min(swap$timestamp)` to `r max(swap$timestamp)`.
+Date range of data: `r min(swaps$timestamp)` to `r max(swaps$timestamp)`.
 
 Sources: 
 [SubQuery Network](https://explorer.subquery.network/)

@@ -5,8 +5,8 @@ output:
     orientation: rows
     vertical_layout: scroll
 params:
-  pair: "AUSD:LCDOT"
-  xdays: 28
+  pair: "ALL"
+  xdays: 14
   madays: 7
   
 ---
@@ -29,23 +29,13 @@ xdays <- params$xdays
 madays <- params$madays
 
 if (params$pair == "ALL") {
-  resx <- swaps[date >= max(res$date) - xdays]
+  resx <- swaps[date >= max(swaps$date) - xdays]
 } else {
-  resx <- swaps[pair1==params$pair | pair2==params$pair | pair3==params$pair & date >= max(res$date) - xdays]
+  resx <- swaps[pair1==params$pair | pair2==params$pair | pair3==params$pair & date >= max(swaps$date) - xdays]
 }
 
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
-
-# # Helper function to download data
-# create_dt <- function(x){
-#   DT::datatable(x,
-#                 extensions = 'Buttons',
-#                 options = list(dom = 'Blfrtip',
-#                                buttons = c('copy', 'csv', 'excel'),
-#                                lengthMenu = list(c(10, 50, -1),
-#                                                  c(10, 50, "All"))))
-# }
 
 # helper function to color the bars in the charts (green, red)
 getColor <- function(status) ifelse(status >= 1, "green", "red")
@@ -175,7 +165,7 @@ Row
 
 ```{r}
 
-  tradeVolume <- resx[, sum(as.numeric(volumeUSD) / 1e12 / 1e6), by = date] %>%
+  tradeVolume <- resx[, sum(volumeUSDFloat), by = date] %>%
     setnames(c("Date","Trading Volume"))
   
   v_list <<- tradeVolume$`Trading Volume`
@@ -200,11 +190,16 @@ Row
 ### Daily Volume / Total Value Locked Ratio
 
 ```{r}
-  
-  tvl <- swaps2[pair == params$pair, .(date, tvlUSD)] %>% 
-    setnames("date","Date")
 
-  tradeVolume <- resx[, sum(as.numeric(volumeUSD) / 1e12 / 1e6), by = date] %>%
+  if (params$pair == "ALL") {
+    tvl <- swaps2[, .(date, sum(tvlUSD))] %>% 
+      setnames(c("date","V2"), c("Date","tvlUSD"))
+  } else {    
+    tvl <- swaps2[pair == params$pair, .(date, tvlUSD)] %>% 
+      setnames("date","Date")
+  }
+
+  tradeVolume <- resx[, sum(volumeUSDFloat), by = date] %>%
     setnames(c("Date","Trading Volume"))
   tvl <- merge(tradeVolume, tvl, by ="Date")
   tvl[, "Volume To TVL" := `Trading Volume` / tvlUSD]
