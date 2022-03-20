@@ -21,7 +21,6 @@ params:
 
 library(rmarkdown)
 library(flexdashboard)
-# library(DT)
 library(dygraphs)
 
 
@@ -117,7 +116,6 @@ Row
   
   avgTradeAvg <- tail(avgTrade$Average, 1)
   avgTradeStatus <<- round(tail(avgTrade$`Trades per user`, 1) / avgTradeAvg, 2)
-
   if (avgTradeStatus < 1) {
     txt <- " down " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   } else {

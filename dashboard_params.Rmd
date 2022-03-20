@@ -9,7 +9,7 @@ output:
 params:
   endpoint: "https://api.subquery.network/sq/rogerjbos/karura-swap-data"
   network: Karura
-  window: 60
+  window: 14
 ---
 
 ```{css custom1, echo=FALSE}
@@ -35,21 +35,19 @@ library(DT)
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
-
-# helper function to color the bars in the charts (green, yellow, & red)
-getColor <- function(status) {
-  ifelse(status >= 1, "#34FF33", ifelse(status >= .5, "#FFC300", "#FF5733"))
-}
-
 # remotes::install_github("ropensci/ghql") # if package is not already installed
 library(jsonlite)
 library(data.table)
 library(ghql)
 x <- GraphqlClient$new()
 
+karura_dex_endpoint <- "https://api.subquery.network/sq/rogerjbos/karura-dex-subql"
+acala_dex_endpoint <- "https://api.subquery.network/sq/rogerjbos/acala-dex-subql"
+
 karura_swap_endpoint <- "https://api.subquery.network/sq/rogerjbos/karura-swap-data"
-karura_official_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura"
 acala_swap_endpoint <- "https://api.subquery.network/sq/rogerjbos/acala-swap-day-data"
+
+karura_official_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura"
 acala_official_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala"
 
 getSwaps <- function(endpoint, window) {
@@ -74,7 +72,7 @@ getSwaps <- function(endpoint, window) {
         dexActions (filter: {timestamp: {greaterThanOrEqualTo: "' %+% mindate %+% '"}, type: {equalTo: "swap"}} ' %+% cursorStr %+% ') {
           totalCount
           edges {
-            node { timestamp id accountId token0Id token1Id  volumeUSDFloat pathLength data
+            node { timestamp id accountId token0Id token1Id  volumeUSD volumeUSDFloat pathLength data
             }
             cursor
           }
@@ -198,77 +196,77 @@ getSwapsByDay <- function(endpoint, window) {
   
 }
 
-getSwapsByHour <- function(endpoint, window) {
-  # endpoint <- karura_endpoint; window <- 20
-  
-  # make a client
-  cli <- GraphqlClient$new(url = endpoint)
-  mindate <- today(tzone = 'UTC') - window
-  
-  cursor <- ''
-  resList <- list()
-  for (i in 1:1000) {
-    if (cursor == '') {
-      cursorStr <- 'first:100'
-    } else {
-      cursorStr <- 'first:100 after:"' %+% cursor %+% '"'
-    }
-    qry <- Query$new()
-    qry$query('swapHourData', '
-      {
-        query {
-          swapHourData (filter: {date: {greaterThanOrEqualTo: "' %+% mindate %+% '"}} ' %+% cursorStr %+% ') {
-            totalCount
-            edges {
-              node { 
-                date
-                token0Id 
-                token1Id 
-                token0Amount 
-                token1Amount 
-                volumeUSD
-                tvlUSD
-                feeUSD
-                txCount
-              }
-              cursor
-            }
-            pageInfo {
-              endCursor
-              hasNextPage
-            }
-          }
-        }
-      }')
-      result <- cli$exec(qry$queries$swapHourData)  %>%
-        fromJSON(flatten=TRUE)
-    
-      cursor <- result$data$query$swapHourData$pageInfo$endCursor
-      res <- as.data.table(result$data$query$swapHourData$edges)
-      res[, cursor := NULL]
-      
-      print(i %+% " " %+% nrow(res))
-      resList[[i]] <- res
-      if (result$data$query$swapHourData$pageInfo$hasNextPage == FALSE) break
-  }
-  res <- rbindlist(resList)
-  setnames(res, old = names(res), new = gsub("node.", "", names(res)))
-  # res[, date := as.Date(date)]
-  setorder(res, date)
-  
-  # Replace foreign assets
-  res[token0Id == 'fa://0', token0Id := 'RMRK']
-  res[token1Id == 'fa://0', token1Id := 'RMRK']
-  
-  res[token0Id == 'lc://13', token0Id := 'LCDOT']
-  res[token1Id == 'lc://13', token1Id := 'LCDOT']
-
-  # Normalize pairs
-  res[, pair := paste0(token0Id %+% ":" %+% token1Id)]
-  res[token1Id < token0Id, pair := paste0(token1Id %+% ":" %+% token0Id)]
-  res  
-  
-}
+# getSwapsByHour <- function(endpoint, window) {
+#   # endpoint <- karura_endpoint; window <- 20
+#   
+#   # make a client
+#   cli <- GraphqlClient$new(url = endpoint)
+#   mindate <- today(tzone = 'UTC') - window
+#   
+#   cursor <- ''
+#   resList <- list()
+#   for (i in 1:1000) {
+#     if (cursor == '') {
+#       cursorStr <- 'first:100'
+#     } else {
+#       cursorStr <- 'first:100 after:"' %+% cursor %+% '"'
+#     }
+#     qry <- Query$new()
+#     qry$query('swapHourData', '
+#       {
+#         query {
+#           swapHourData (filter: {date: {greaterThanOrEqualTo: "' %+% mindate %+% '"}} ' %+% cursorStr %+% ') {
+#             totalCount
+#             edges {
+#               node { 
+#                 date
+#                 token0Id 
+#                 token1Id 
+#                 token0Amount 
+#                 token1Amount 
+#                 volumeUSD
+#                 tvlUSD
+#                 feeUSD
+#                 txCount
+#               }
+#               cursor
+#             }
+#             pageInfo {
+#               endCursor
+#               hasNextPage
+#             }
+#           }
+#         }
+#       }')
+#       result <- cli$exec(qry$queries$swapHourData)  %>%
+#         fromJSON(flatten=TRUE)
+#     
+#       cursor <- result$data$query$swapHourData$pageInfo$endCursor
+#       res <- as.data.table(result$data$query$swapHourData$edges)
+#       res[, cursor := NULL]
+#       
+#       print(i %+% " " %+% nrow(res))
+#       resList[[i]] <- res
+#       if (result$data$query$swapHourData$pageInfo$hasNextPage == FALSE) break
+#   }
+#   res <- rbindlist(resList)
+#   setnames(res, old = names(res), new = gsub("node.", "", names(res)))
+#   # res[, date := as.Date(date)]
+#   setorder(res, date)
+#   
+#   # Replace foreign assets
+#   res[token0Id == 'fa://0', token0Id := 'RMRK']
+#   res[token1Id == 'fa://0', token1Id := 'RMRK']
+#   
+#   res[token0Id == 'lc://13', token0Id := 'LCDOT']
+#   res[token1Id == 'lc://13', token1Id := 'LCDOT']
+# 
+#   # Normalize pairs
+#   res[, pair := paste0(token0Id %+% ":" %+% token1Id)]
+#   res[token1Id < token0Id, pair := paste0(token1Id %+% ":" %+% token0Id)]
+#   res  
+#   
+# }
 
 window <- params$window
 endpoint <- params$endpoint
@@ -288,6 +286,7 @@ for (i in 1:nrow(swaps)) {
     token[is.na(token)] <- alt[is.na(token)]  
   }
   token <- sub("13", "LCDOT", token)
+  token <- sub("0", "RMRK", token)
   amount <- fromJSON(tmp[[3]])
   while (length(token) < 4) {
     token <- c(token, NA)
@@ -321,12 +320,7 @@ pairs <- rbind(data.table(Pair = "ALL", V1 = sum(pairs$V1)), pairs)
 pairs <- pairs[order(V1, decreasing = TRUE)] %>%
   setnames(c("Pair", "Observations"))
 
-####
-
 swaps[, paths := as.factor(pathLength)]
-
-# cols <- c("date","pair","paths","volumeUSDFloat")
-# res2 <- swaps[exclude == FALSE, ..cols]
 
 # Calculate measures for each pair
 user_status   <- list()
@@ -346,7 +340,7 @@ for (p in pairs$Pair) {
   
   try(rm(u_list, t_list, p_list, v_list), silent = TRUE)
   
-  outname <- "~/R_HOME/websites/web_acala/content/swap_" %+% p %+% ".html"
+  outname <- "~/R_HOME/websites/web_acala/content/swap_" %+% network %+% "_" %+% p %+% ".html"
   unlink(outname)
   # Create report for each pair
   rmarkdown::render("~/R_HOME/karura-reports/Swap_template.Rmd",
@@ -368,11 +362,7 @@ for (p in pairs$Pair) {
 
   d <- list()
   for (x in pairs$Pair) {
-    d[x] <- paste0('<span class="footText"><a CLASS="nav" href="/swap_', 
-                     x, 
-                     '.html">', 
-                     x, 
-                     '</a></span>', collapse = "")
+    d[x] <- paste0('<span class="footText"><a CLASS="nav" href="/swap_', network, '_', x, '.html">', x, '</a></span>', collapse = '')
   }
 
   inline_plot <- data.frame(Count = pairs$Observations, 
@@ -396,7 +386,8 @@ for (p in pairs$Pair) {
 
   p <- inline_plot %>%
     kbl(booktabs = TRUE, escape = FALSE, align='rrrrrrrrr') %>%
-    add_header_above(c(" " = 1, " " = 1, "Active Users" = 2, "Swap Trades" = 2, "Trades Per User" = 2, "Trading Volume" = 2)) %>%  kable_paper(full_width = FALSE) %>%
+    add_header_above(c(" " = 1, " " = 1, "Active Users" = 2, "Swap Trades" = 2, "Trades Per User" = 2, "Trading Volume" = 2)) %>%  
+    kable_paper(full_width = FALSE) %>%
     column_spec(4, image = spec_plot(users_list, same_lim = FALSE)) %>%
     column_spec(6, image = spec_plot(trades_list, same_lim = FALSE)) %>%
     column_spec(8, image = spec_plot(per_list, same_lim = FALSE)) %>%
@@ -417,6 +408,5 @@ Date range of data: `r min(swaps$timestamp)` to `r max(swaps$timestamp)`.
 
 Sources: 
 [SubQuery Network](https://explorer.subquery.network/)
-[Acala-Swap-Day-Data](https://project.subquery.network/project/rogerjbos/acala-swap-day-data)
-[Karura-Swap-Data](https://project.subquery.network/project/rogerjbos/karura-swap-data)
-
+[Acala-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/acala-dex-subql)
+[Karura-Swap-Data](https://api.subquery.network/sq/rogerjbos/karura-dex-subql)
