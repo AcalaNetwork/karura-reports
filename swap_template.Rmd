@@ -5,7 +5,7 @@ output:
     orientation: rows
     vertical_layout: scroll
 params:
-  pair: "ALL"
+  pair: "KSM:KUSD"
   xdays: 14
   madays: 7
   
@@ -26,11 +26,16 @@ library(dygraphs)
 
 xdays <- params$xdays
 madays <- params$madays
+pair <- params$pair
 
-if (params$pair == "ALL") {
+if (pair == "ALL") {
   resx <- swaps[date >= max(swaps$date) - xdays]
+    tvl <- swaps2[, sum(tvlUSD), by = date] %>%
+      setnames(c("date","V1"), c("Date","tvlUSD"))
 } else {
   resx <- swaps[pair1==params$pair | pair2==params$pair | pair3==params$pair & date >= max(swaps$date) - xdays]
+    tvl <- swaps2[pair == params$pair, tvlUSD, by = date] %>% 
+      setnames("date","Date")
 }
 
 # Helper function to concat
@@ -141,7 +146,7 @@ Row
   avgTrade <- rbind(avgTrade, add1)
   
   dygraph(avgTrade, main = "Trades Per User" %+% txt)  %>% 
-    dySeries("Trades per user", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
+    dySeries("Trades per user", stepPlot = TRUE, fill = TRUE, color = getColor(avgTradeStatus)) %>%
     dySeries("Average", color = "blue") 
 
 ```
@@ -170,7 +175,7 @@ Row
   fees <- rbind(fees, add1)
   
   dygraph(fees, main = "Swap Fees" %+% txt)  %>% 
-    dySeries("Swap Fees", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
+    dySeries("Swap Fees", stepPlot = TRUE, fill = TRUE, color = getColor(feesStatus)) %>%
     dySeries("Average", color = "blue") 
 
 ```
@@ -212,13 +217,6 @@ Row
 
 ```{r}
 
-  if (params$pair == "ALL") {
-    tvl <- swaps2[, .(date, sum(tvlUSD))] %>% 
-      setnames(c("date","V2"), c("Date","tvlUSD"))
-  } else {    
-    tvl <- swaps2[pair == params$pair, .(date, tvlUSD)] %>% 
-      setnames("date","Date")
-  }
 
   tradeVolume <- resx[, sum(volumeUSDFloat), by = date] %>%
     setnames(c("Date","Trading Volume"))
@@ -243,8 +241,11 @@ Row
   add1[, Date := Date + 1]
   tvl <- rbind(tvl, add1)
   
+  tvl[, Average := NULL]
+  
   dygraph(tvl, main = "Volume To TVL" %+% txt)  %>% 
-    dySeries("Volume To TVL", stepPlot = TRUE, fill = TRUE, color = getColor(volumeToTVLStatus)) %>%
-    dySeries("Average", color = "blue") 
+    dySeries("Volume To TVL", color = getColor(volumeToTVLStatus)) 
+  # %>%
+  #   dySeries("Average", color = "blue") 
 
 ```

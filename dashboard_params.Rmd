@@ -7,8 +7,8 @@ output:
     social: menu
     source_code: embed
 params:
-  endpoint: "https://api.subquery.network/sq/rogerjbos/acala-swap-day-data"
-  network: Acala
+  endpoint: "https://api.subquery.network/sq/rogerjbos/karura-test"
+  network: Karura
   window: 14
 ---
 
@@ -264,7 +264,7 @@ volume_list <- list()
 # remove old params object before calling render with new params list
 rm(params)
 for (p in pairs$Pair) {
-  # p <- pairs$Pair[2]
+  # p <- pairs$Pair[3]
   
   try(rm(u_list, t_list, p_list, v_list), silent = TRUE)
   
