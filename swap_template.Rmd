@@ -53,20 +53,27 @@ Row
     setnames(c("Date","Active Users"))
 
   u_list <<- activeUsers$`Active Users`
-  activeUsers[, `Average` := frollmean(`Active Users`, madays)]  
+  activeUsers[, Average := frollmean(`Active Users`, madays)]  
   
   activeUsersAvg <- tail(activeUsers$Average, 1)
   activeUsersStatus <<- round(tail(activeUsers$`Active Users`, 1) / activeUsersAvg, 2)
 
   if (activeUsersStatus < 1) {
     txt <- " down " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
+    txt <- g(tail(activeUsers$`Active Users`, 1), 1) %+% "_" %+% g(activeUsersAvg,1) 
   } else {
     txt <- " up " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
+    txt <- g(tail(activeUsers$`Active Users`, 1), 1) %+% "_" %+% g(activeUsersAvg,1) 
   }
+
+  add1 <- tail(activeUsers, 1)
+  add1[, Date := Date + 1]
+  activeUsers <- rbind(activeUsers, add1)
   
-dygraph(activeUsers, main = "Active Users" %+% txt)  %>% 
-  dySeries("Active Users", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
-  dySeries("Average", color = "blue") 
+  dygraph(activeUsers, main = "Active Users" %+% txt)  %>%
+    dySeries("Active Users", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
+    dySeries("Average", color = "blue")
+  
 
 ```
 
@@ -77,11 +84,11 @@ dygraph(activeUsers, main = "Active Users" %+% txt)  %>%
   trades <- resx[, .N, by = date] %>%
     setnames(c("Date","Trades"))
 
-  t_list <<- trades$`Trades`
-  trades[, `Average` := frollmean(`Trades`, madays)]  
+  t_list <<- trades$Trades
+  trades[, Average := frollmean(`Trades`, madays)]  
   
   tradesAvg <- tail(trades$Average, 1)
-  tradesStatus <<- round(tail(trades$`Trades`, 1) / tradesAvg, 2)
+  tradesStatus <<- round(tail(trades$Trades, 1) / tradesAvg, 2)
 
   if (tradesStatus < 1) {
     txt <- " down " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
@@ -89,6 +96,10 @@ dygraph(activeUsers, main = "Active Users" %+% txt)  %>%
     txt <- " up " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   }
 
+  add1 <- tail(trades, 1)
+  add1[, Date := Date + 1]
+  trades <- rbind(trades, add1)
+  
   dygraph(trades, main = "Trades" %+% txt)  %>% 
     dySeries("Trades", stepPlot = TRUE, fill = TRUE, color = getColor(tradesStatus)) %>%
     dySeries("Average", color = "blue") 
@@ -125,6 +136,10 @@ Row
   avgTrade[, Trades := NULL]
   avgTrade[, `Active Users` := NULL]
 
+  add1 <- tail(avgTrade, 1)
+  add1[, Date := Date + 1]
+  avgTrade <- rbind(avgTrade, add1)
+  
   dygraph(avgTrade, main = "Trades Per User" %+% txt)  %>% 
     dySeries("Trades per user", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
     dySeries("Average", color = "blue") 
@@ -150,9 +165,13 @@ Row
     txt <- " up " %+% as.character((feesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   }
   
-dygraph(fees, main = "Swap Fees" %+% txt)  %>% 
-  dySeries("Swap Fees", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
-  dySeries("Average", color = "blue") 
+  add1 <- tail(fees, 1)
+  add1[, Date := Date + 1]
+  fees <- rbind(fees, add1)
+  
+  dygraph(fees, main = "Swap Fees" %+% txt)  %>% 
+    dySeries("Swap Fees", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
+    dySeries("Average", color = "blue") 
 
 ```
 
@@ -178,6 +197,10 @@ Row
     txt <- " up " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
   }
 
+  add1 <- tail(tradeVolume, 1)
+  add1[, Date := Date + 1]
+  tradeVolume <- rbind(tradeVolume, add1)
+  
   dygraph(tradeVolume, main = "Trading Volume" %+% txt)  %>% 
     dySeries("Trading Volume", stepPlot = TRUE, fill = TRUE, color = getColor(tradeVolumeStatus)) %>%
     dySeries("Average", color = "blue") 
@@ -215,6 +238,10 @@ Row
 
   tvl[, `Trading Volume` := NULL]
   tvl[, `tvlUSD` := NULL]
+  
+  add1 <- tail(tvl, 1)
+  add1[, Date := Date + 1]
+  tvl <- rbind(tvl, add1)
   
   dygraph(tvl, main = "Volume To TVL" %+% txt)  %>% 
     dySeries("Volume To TVL", stepPlot = TRUE, fill = TRUE, color = getColor(volumeToTVLStatus)) %>%
