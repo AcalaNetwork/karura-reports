@@ -71,7 +71,7 @@ Row
   activeUsers[, Average := frollmean(`Active Users`, madays)]  
   
   activeUsersAvg <- tail(activeUsers$Average, 1)
-  activeUsersStatus <- tail(activeUsers$`Active Users`, 1) / activeUsersAvg
+  activeUsersStatus <<- round(tail(activeUsers$`Active Users`, 1) / activeUsersAvg,2)
 
   add1 <- tail(activeUsers, 1)
   add1[, Date := Date + 1]
@@ -95,7 +95,7 @@ Row
   trades[, Average := frollmean(`Trades`, madays)]  
   
   tradesAvg <- tail(trades$Average, 1)
-  tradesStatus <- tail(trades$Trades, 1) / tradesAvg
+  tradesStatus <<- round(tail(trades$Trades, 1) / tradesAvg,2)
 
   add1 <- tail(trades, 1)
   add1[, Date := Date + 1]
@@ -127,7 +127,7 @@ Row
   avgTrade[, `Average` := frollmean(`Trades per user`, madays)]  
   
   avgTradeAvg <- tail(avgTrade$Average, 1)
-  avgTradeStatus <- tail(avgTrade$`Trades per user`, 1) / avgTradeAvg
+  avgTradeStatus <<- round(tail(avgTrade$`Trades per user`, 1) / avgTradeAvg,2)
 
   avgTrade[, Trades := NULL]
   avgTrade[, `Active Users` := NULL]
@@ -153,7 +153,7 @@ Row
   fees[, `Average` := frollmean(`Swap Fees`, madays)]  
   
   feesAvg <- tail(fees$Average, 1)
-  feesStatus <- tail(fees$`Swap Fees`, 1) / feesAvg
+  feesStatus <<- round(tail(fees$`Swap Fees`, 1) / feesAvg,2)
 
   add1 <- tail(fees, 1)
   add1[, Date := Date + 1]
@@ -179,7 +179,7 @@ Row
   tradeVolume[, `Average` := frollmean(`Trading Volume`, madays)]  
   
   tradeVolumeAvg <- tail(tradeVolume$Average, 1)
-  tradeVolumeStatus <- tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg
+  tradeVolumeStatus <<- round(tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg,2)
 
   add1 <- tail(tradeVolume, 1)
   add1[, Date := Date + 1]
@@ -205,7 +205,7 @@ Row
   tvl[, `Average` := frollmean(`Volume To TVL`, madays)]  
   
   volumeToTVLAvg <- tail(tvl$Average, 1)
-  volumeToTVLStatus <- tail(tvl$`Average`, 1) / volumeToTVLAvg
+  volumeToTVLStatus <<- round(tail(tvl$`Average`, 1) / volumeToTVLAvg,2)
 
   tvl[, `Trading Volume` := NULL]
   tvl[, `tvlUSD` := NULL]
