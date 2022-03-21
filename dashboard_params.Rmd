@@ -44,7 +44,7 @@ x <- GraphqlClient$new()
 karura_dex_endpoint <- "https://api.subquery.network/sq/rogerjbos/karura-dex-subql"
 acala_dex_endpoint <- "https://api.subquery.network/sq/rogerjbos/acala-dex-subql"
 
-karura_swap_endpoint <- "https://api.subquery.network/sq/rogerjbos/karura-swap-data"
+karura_swap_endpoint <- "https://api.subquery.network/sq/rogerjbos/karura-test"
 acala_swap_endpoint <- "https://api.subquery.network/sq/rogerjbos/acala-swap-day-data"
 
 karura_official_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura"
