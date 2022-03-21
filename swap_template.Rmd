@@ -44,6 +44,16 @@ if (pair == "ALL") {
 # helper function to color the bars in the charts (green, red)
 getColor <- function(status) ifelse(status >= 1, "green", "red")
 
+# helper function for chart text
+getText <<- function(x, madays) {
+  if (x < 1) {
+    txt <- " down " %+% as.character(round((x - 1) * 100, 0)) %+% "% vs. " %+% madays %+% "D Avg"
+  } else {
+    txt <- " up " %+% as.character(round((x - 1) * 100, 0)) %+% "% vs. " %+% madays %+% "D Avg"
+  }
+  txt
+}
+
 ```
 
 # Pairs {.tabset}
@@ -61,21 +71,13 @@ Row
   activeUsers[, Average := frollmean(`Active Users`, madays)]  
   
   activeUsersAvg <- tail(activeUsers$Average, 1)
-  activeUsersStatus <<- round(tail(activeUsers$`Active Users`, 1) / activeUsersAvg, 2)
-
-  if (activeUsersStatus < 1) {
-    txt <- " down " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-    txt <- g(tail(activeUsers$`Active Users`, 1), 1) %+% "_" %+% g(activeUsersAvg,1) 
-  } else {
-    txt <- " up " %+% as.character((activeUsersStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-    txt <- g(tail(activeUsers$`Active Users`, 1), 1) %+% "_" %+% g(activeUsersAvg,1) 
-  }
+  activeUsersStatus <- tail(activeUsers$`Active Users`, 1) / activeUsersAvg
 
   add1 <- tail(activeUsers, 1)
   add1[, Date := Date + 1]
   activeUsers <- rbind(activeUsers, add1)
   
-  dygraph(activeUsers, main = "Active Users" %+% txt)  %>%
+  dygraph(activeUsers, main = "Active Users" %+% getText(activeUsersStatus, madays))  %>%
     dySeries("Active Users", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
     dySeries("Average", color = "blue")
   
@@ -93,19 +95,13 @@ Row
   trades[, Average := frollmean(`Trades`, madays)]  
   
   tradesAvg <- tail(trades$Average, 1)
-  tradesStatus <<- round(tail(trades$Trades, 1) / tradesAvg, 2)
-
-  if (tradesStatus < 1) {
-    txt <- " down " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  } else {
-    txt <- " up " %+% as.character((tradesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  }
+  tradesStatus <- tail(trades$Trades, 1) / tradesAvg
 
   add1 <- tail(trades, 1)
   add1[, Date := Date + 1]
   trades <- rbind(trades, add1)
   
-  dygraph(trades, main = "Trades" %+% txt)  %>% 
+  dygraph(trades, main = "Trades" %+% getText(tradesStatus, madays))  %>% 
     dySeries("Trades", stepPlot = TRUE, fill = TRUE, color = getColor(tradesStatus)) %>%
     dySeries("Average", color = "blue") 
 
@@ -131,12 +127,7 @@ Row
   avgTrade[, `Average` := frollmean(`Trades per user`, madays)]  
   
   avgTradeAvg <- tail(avgTrade$Average, 1)
-  avgTradeStatus <<- round(tail(avgTrade$`Trades per user`, 1) / avgTradeAvg, 2)
-  if (avgTradeStatus < 1) {
-    txt <- " down " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  } else {
-    txt <- " up " %+% as.character((avgTradeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  }
+  avgTradeStatus <- tail(avgTrade$`Trades per user`, 1) / avgTradeAvg
 
   avgTrade[, Trades := NULL]
   avgTrade[, `Active Users` := NULL]
@@ -145,7 +136,7 @@ Row
   add1[, Date := Date + 1]
   avgTrade <- rbind(avgTrade, add1)
   
-  dygraph(avgTrade, main = "Trades Per User" %+% txt)  %>% 
+  dygraph(avgTrade, main = "Trades Per User" %+% getText(avgTradeStatus, madays))  %>% 
     dySeries("Trades per user", stepPlot = TRUE, fill = TRUE, color = getColor(avgTradeStatus)) %>%
     dySeries("Average", color = "blue") 
 
@@ -162,19 +153,13 @@ Row
   fees[, `Average` := frollmean(`Swap Fees`, madays)]  
   
   feesAvg <- tail(fees$Average, 1)
-  feesStatus <<- round(tail(fees$`Swap Fees`, 1) / feesAvg, 2)
+  feesStatus <- tail(fees$`Swap Fees`, 1) / feesAvg
 
-  if (feesStatus < 1) {
-    txt <- " down " %+% as.character((feesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  } else {
-    txt <- " up " %+% as.character((feesStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  }
-  
   add1 <- tail(fees, 1)
   add1[, Date := Date + 1]
   fees <- rbind(fees, add1)
   
-  dygraph(fees, main = "Swap Fees" %+% txt)  %>% 
+  dygraph(fees, main = "Swap Fees" %+% getText(feesStatus, madays))  %>% 
     dySeries("Swap Fees", stepPlot = TRUE, fill = TRUE, color = getColor(feesStatus)) %>%
     dySeries("Average", color = "blue") 
 
@@ -194,19 +179,13 @@ Row
   tradeVolume[, `Average` := frollmean(`Trading Volume`, madays)]  
   
   tradeVolumeAvg <- tail(tradeVolume$Average, 1)
-  tradeVolumeStatus <<- round(tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg, 2)
-
-  if (tradeVolumeStatus < 1) {
-    txt <- " down " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  } else {
-    txt <- " up " %+% as.character((tradeVolumeStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  }
+  tradeVolumeStatus <- tail(tradeVolume$`Trading Volume`, 1) / tradeVolumeAvg
 
   add1 <- tail(tradeVolume, 1)
   add1[, Date := Date + 1]
   tradeVolume <- rbind(tradeVolume, add1)
   
-  dygraph(tradeVolume, main = "Trading Volume" %+% txt)  %>% 
+  dygraph(tradeVolume, main = "Trading Volume" %+% getText(tradeVolumeStatus, madays))  %>% 
     dySeries("Trading Volume", stepPlot = TRUE, fill = TRUE, color = getColor(tradeVolumeStatus)) %>%
     dySeries("Average", color = "blue") 
 
@@ -226,26 +205,14 @@ Row
   tvl[, `Average` := frollmean(`Volume To TVL`, madays)]  
   
   volumeToTVLAvg <- tail(tvl$Average, 1)
-  volumeToTVLStatus <<- round(tail(tvl$`Average`, 1) / volumeToTVLAvg, 2)
-
-  if (volumeToTVLStatus < 1) {
-    txt <- " down " %+% as.character((volumeToTVLStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  } else {
-    txt <- " up " %+% as.character((volumeToTVLStatus-1)*100) %+% "% vs. " %+% madays %+% "D Avg"
-  }
+  volumeToTVLStatus <- tail(tvl$`Average`, 1) / volumeToTVLAvg
 
   tvl[, `Trading Volume` := NULL]
   tvl[, `tvlUSD` := NULL]
-  
-  # add1 <- tail(tvl, 1)
-  # add1[, Date := Date + 1]
-  # tvl <- rbind(tvl, add1)
-  
+
   tvl[, Average := NULL]
   
-  dygraph(tvl, main = "Volume To TVL" %+% txt)  %>% 
+  dygraph(tvl, main = "Volume To TVL" %+% getText(volumeToTVLStatus, madays))  %>% 
     dySeries("Volume To TVL", color = getColor(volumeToTVLStatus)) 
-  # %>%
-  #   dySeries("Average", color = "blue") 
 
 ```
