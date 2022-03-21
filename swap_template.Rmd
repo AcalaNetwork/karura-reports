@@ -237,9 +237,9 @@ Row
   tvl[, `Trading Volume` := NULL]
   tvl[, `tvlUSD` := NULL]
   
-  add1 <- tail(tvl, 1)
-  add1[, Date := Date + 1]
-  tvl <- rbind(tvl, add1)
+  # add1 <- tail(tvl, 1)
+  # add1[, Date := Date + 1]
+  # tvl <- rbind(tvl, add1)
   
   tvl[, Average := NULL]
   
