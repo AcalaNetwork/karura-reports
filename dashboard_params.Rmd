@@ -304,13 +304,18 @@ for (p in pairs$Pair) {
                             V_Trend = "")
   row.names(inline_plot) <- unlist(d)
 
-  inline_plot$U_Growth <- cell_spec(inline_plot$U_Growth, color = ifelse(inline_plot$U_Growth < 1, "red", "green"))
-
-  inline_plot$S_Growth <- cell_spec(inline_plot$S_Growth, color = ifelse(inline_plot$S_Growth < 1, "red", "green"))
+  getSpecColor <- function(x) {
+    x[is.na(x)] <- 0
+    ifelse(x < 1, "red", "green")
+  }
   
-  inline_plot$TPU_Growth <- cell_spec(inline_plot$TPU_Growth, color = ifelse(inline_plot$TPU_Growth < 1, "red", "green"))
+  inline_plot$U_Growth <- cell_spec(inline_plot$U_Growth, color = getSpecColor(inline_plot$U_Growth))
 
-  inline_plot$V_Growth <- cell_spec(inline_plot$V_Growth, color = ifelse(inline_plot$V_Growth < 1, "red", "green"))
+  inline_plot$S_Growth <- cell_spec(inline_plot$S_Growth, color = getSpecColor(inline_plot$S_Growth))
+  
+  inline_plot$TPU_Growth <- cell_spec(inline_plot$TPU_Growth, color = getSpecColor(inline_plot$TPU_Growth))
+
+  inline_plot$V_Growth <- cell_spec(inline_plot$V_Growth, color = getSpecColor(inline_plot$V_Growth))
 
   p <- inline_plot %>%
     kbl(booktabs = TRUE, escape = FALSE, align='rrrrrrrrr') %>%
