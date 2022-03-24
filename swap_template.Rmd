@@ -5,7 +5,7 @@ output:
     orientation: rows
     vertical_layout: scroll
 params:
-  pair: "KSM:KUSD"
+  pair: "RMRK:TAI"
   xdays: 14
   madays: 7
   
@@ -46,6 +46,7 @@ getColor <- function(status) ifelse(status >= 1, "green", "red")
 
 # helper function for chart text
 getText <<- function(x, madays) {
+  if (is.na(x)) return(" history too short.")
   if (x < 1) {
     txt <- " down " %+% as.character(round((x - 1) * 100, 0)) %+% "% vs. " %+% madays %+% "D Avg"
   } else {
@@ -77,10 +78,11 @@ Row
   add1[, Date := Date + 1]
   activeUsers <- rbind(activeUsers, add1)
   
-  dygraph(activeUsers, main = "Active Users" %+% getText(activeUsersStatus, madays))  %>%
-    dySeries("Active Users", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
-    dySeries("Average", color = "blue")
-  
+  if (nrow(activeUsers) > 5) {
+    dygraph(activeUsers, main = "Active Users" %+% getText(activeUsersStatus, madays))  %>%
+      dySeries("Active Users", stepPlot = TRUE, fill = TRUE, color = getColor(activeUsersStatus)) %>%
+      dySeries("Average", color = "blue")
+  }  
 
 ```
 
@@ -101,10 +103,12 @@ Row
   add1[, Date := Date + 1]
   trades <- rbind(trades, add1)
   
-  dygraph(trades, main = "Trades" %+% getText(tradesStatus, madays))  %>% 
-    dySeries("Trades", stepPlot = TRUE, fill = TRUE, color = getColor(tradesStatus)) %>%
-    dySeries("Average", color = "blue") 
-
+  if (nrow(trades) > 5) {
+    dygraph(trades, main = "Trades" %+% getText(tradesStatus, madays))  %>% 
+      dySeries("Trades", stepPlot = TRUE, fill = TRUE, color = getColor(tradesStatus)) %>%
+      dySeries("Average", color = "blue") 
+  }
+  
 ```
 
 Row 
@@ -136,10 +140,12 @@ Row
   add1[, Date := Date + 1]
   avgTrade <- rbind(avgTrade, add1)
   
-  dygraph(avgTrade, main = "Trades Per User" %+% getText(avgTradeStatus, madays))  %>% 
-    dySeries("Trades per user", stepPlot = TRUE, fill = TRUE, color = getColor(avgTradeStatus)) %>%
-    dySeries("Average", color = "blue") 
-
+  if (nrow(avgTrade) > 5) {
+    dygraph(avgTrade, main = "Trades Per User" %+% getText(avgTradeStatus, madays))  %>% 
+      dySeries("Trades per user", stepPlot = TRUE, fill = TRUE, color = getColor(avgTradeStatus)) %>%
+      dySeries("Average", color = "blue") 
+  }
+  
 ```
 
 ### Daily Fees in USD
@@ -159,10 +165,12 @@ Row
   add1[, Date := Date + 1]
   fees <- rbind(fees, add1)
   
-  dygraph(fees, main = "Swap Fees" %+% getText(feesStatus, madays))  %>% 
-    dySeries("Swap Fees", stepPlot = TRUE, fill = TRUE, color = getColor(feesStatus)) %>%
-    dySeries("Average", color = "blue") 
-
+  if (nrow(fees) > 5) {
+    dygraph(fees, main = "Swap Fees" %+% getText(feesStatus, madays))  %>% 
+      dySeries("Swap Fees", stepPlot = TRUE, fill = TRUE, color = getColor(feesStatus)) %>%
+      dySeries("Average", color = "blue") 
+  }
+  
 ```
 
 Row
@@ -185,10 +193,11 @@ Row
   add1[, Date := Date + 1]
   tradeVolume <- rbind(tradeVolume, add1)
   
-  dygraph(tradeVolume, main = "Trading Volume" %+% getText(tradeVolumeStatus, madays))  %>% 
-    dySeries("Trading Volume", stepPlot = TRUE, fill = TRUE, color = getColor(tradeVolumeStatus)) %>%
-    dySeries("Average", color = "blue") 
-
+  if (nrow(tradeVolume) > 5) {
+    dygraph(tradeVolume, main = "Trading Volume" %+% getText(tradeVolumeStatus, madays))  %>% 
+      dySeries("Trading Volume", stepPlot = TRUE, fill = TRUE, color = getColor(tradeVolumeStatus)) %>%
+      dySeries("Average", color = "blue") 
+  }
 ```
 
 
@@ -212,7 +221,9 @@ Row
 
   tvl[, Average := NULL]
   
-  dygraph(tvl, main = "Volume To TVL" %+% getText(volumeToTVLStatus, madays))  %>% 
-    dySeries("Volume To TVL", color = getColor(volumeToTVLStatus)) 
-
+  if (nrow(tvl) > 5) {
+    dygraph(tvl, main = "Volume To TVL" %+% getText(volumeToTVLStatus, madays))  %>% 
+      dySeries("Volume To TVL", color = getColor(volumeToTVLStatus)) 
+  }
+  
 ```
