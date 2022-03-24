@@ -5,7 +5,7 @@ output:
     orientation: rows
     vertical_layout: scroll
 params:
-  pair: "RMRK:TAI"
+  pair: "KAR:KSM"
   xdays: 14
   madays: 7
   
@@ -57,7 +57,7 @@ getText <<- function(x, madays) {
 
 ```
 
-# Pairs {.tabset}
+# Swaps {.tabset}
 Row
 ----
 
@@ -226,4 +226,34 @@ Row
       dySeries("Volume To TVL", color = getColor(volumeToTVLStatus)) 
   }
   
+```
+
+# Liquidity {.tabset}
+
+```{r}
+
+  if (params$pair == "ALL") {
+    l <- dcast(liq, Date ~ type, value.var = 'volumeUSD')
+  } else {
+    l <- try(dcast(liq2[pair == params$pair], Date ~ type, value.var = 'volumeUSD'), silent = TRUE)
+  }
+
+  if (!inherits(l, "try-error")) {
+    l[is.na(addLiquidity), addLiquidity := 0]
+    l[is.na(removeLiquidity), removeLiquidity := 0]
+    
+    l[, Net := addLiquidity + removeLiquidity]
+  
+    add1 <- tail(l, 1)
+    add1[, Date := Date + 1]
+    l <- rbind(l, add1)
+  
+    if (nrow(l) > 5) {
+      dygraph(l, main = params$pair %+% " - Liquidity Trend (USD)") %>%
+        dySeries("addLiquidity", stepPlot = TRUE, fill = TRUE, color = "green") %>%
+        dySeries("removeLiquidity", stepPlot = TRUE, fill = TRUE, color = "red") %>%
+        dySeries("Net", color = "blue") 
+    }
+  }
+
 ```
