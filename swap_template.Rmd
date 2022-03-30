@@ -200,7 +200,6 @@ Row
   }
 ```
 
-
 ### Daily Volume / Total Value Locked Ratio
 
 ```{r}
@@ -230,6 +229,8 @@ Row
 
 # Liquidity {.tabset}
 
+### Liquidity Trend
+
 ```{r}
 
   if (params$pair == "ALL") {
@@ -255,5 +256,122 @@ Row
         dySeries("Net", color = "blue") 
     }
   }
+
+```
+
+# Loans {.tabset}
+
+Row
+---
+
+### Deposit Trend
+
+```{r}
+
+# dailyLoanCollateral <- getLoansDailyCollateralQuery(loan_endpoint, window)
+# dailyLoanPositions <- getLoansDailyPositionsQuery(loan_endpoint, window)
+# collaterParams <- getLoansCollateralParamsQuery(loan_endpoint)
+
+  pos <- merge(dailyLoanPositions, collaterParams, by="collateral.id", all=FALSE) # ignore taiKSM
+  pos[, Ratio := depositVolumeUSD/debitVolumeUSD]
+  pos[, Status := 'Safe']
+  pos[Ratio <= requiredCollateralRatio, Status := 'Warning']
+  pos[Ratio <= 1.1 * liquidationRatio, Status := 'Danger']
+  
+  pos <- pos[, .(Date, owner.id, collateral.id, depositVolumeUSD, debitVolumeUSD, Ratio, Status,
+                 liquidationRatio, requiredCollateralRatio)]
+
+  if (params$pair == "ALL") {
+    
+    tmp <- dailyLoanCollateral[, .(Date, depositChangedUSD, debitChangedUSD, txCount )]
+    tmp <- tmp[, .(sum(depositChangedUSD), sum(debitChangedUSD), sum(txCount)), by = Date] %>%
+      setnames(c('Date', 'depositChangedUSD', 'debitChangedUSD', 'txCount'))
+    tag <- "ALL"
+    
+  } else {
+    
+    tag <- strsplit(p, ":")[[1]][1]
+    tmp <- dailyLoanCollateral[collateral.id == tag, .(Date, depositChangedUSD, debitChangedUSD, txCount )]
+    pos <- pos[collateral.id == tag]
+    
+  }
+
+  if (!inherits(tmp, "try-error")) {
+
+    depositStatus <- dcast(pos, Date ~ Status, fun.aggregate = sum, value.var = 'depositVolumeUSD')
+    debitStatus <- dcast(pos, Date ~ Status, fun.aggregate = sum, value.var = 'debitVolumeUSD')
+
+    add1 <- tail(tmp, 1)
+    add1[, Date := Date + 1]
+    tmp <- rbind(tmp, add1)
+  
+    if (nrow(tmp) > 5) {
+      
+      p1 <- dygraph(tmp[, .(Date, depositChangedUSD)], main = tag %+% " - Deposit Trend (USD)") %>%
+        dySeries("depositChangedUSD", stepPlot = TRUE, fill = TRUE, color = "green")
+
+      p2 <- dygraph(tmp[, .(Date, debitChangedUSD)], main = tag %+% " - Debit Trends (USD)") %>%
+        dySeries("debitChangedUSD", stepPlot = TRUE, fill = TRUE, color = "red")
+      
+      p3 <- dygraph(tmp[, .(Date, txCount)], main = tag %+% " - Number of Transactions (USD)") %>%
+        dySeries("txCount", color = "blue") 
+
+      p4 <- dygraph(depositStatus, main = tag %+% " - Deposit Status") %>% 
+        dyStackedBarChart()
+      
+      p5 <- dygraph(debitStatus, main = tag %+% " - Debit Status") %>% 
+        dyStackedBarChart()
+      
+    } else {
+      p1 <- p2 <- p3 <- p4 <- p5 <- NULL
+    }
+    
+  }
+
+  p1
+
+```
+### Debit Trend
+
+```{r}
+p2
+```
+
+Row
+---
+
+### Transactions
+
+```{r}
+p3
+```
+
+Row
+---
+
+### Deposit Status
+
+```{r}
+p4
+```
+
+### Debit Status
+
+```{r}
+p5
+```
+
+# Risky Loans {.tabset}
+
+### Top 5 Risky Loans
+
+```{r}
+
+setorder(pos, Ratio)
+top5 <- pos[!is.nan(Ratio), .(Date, owner.id, collateral.id, depositVolumeUSD, debitVolumeUSD, Ratio, requiredCollateralRatio)][1:5]
+
+mutate_if(top5, is.numeric, function(x) {cell_spec(x=round(x,2))}) %>%
+kable(escape = FALSE, align = "r") %>%
+kable_styling(c("striped", "condensed"), full_width = FALSE)
 
 ```
