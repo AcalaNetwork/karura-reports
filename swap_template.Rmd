@@ -5,7 +5,7 @@ output:
     orientation: rows
     vertical_layout: scroll
 params:
-  pair: "KAR:KSM"
+  pair: "RMRK:TAI"
   xdays: 14
   madays: 7
   
@@ -165,7 +165,7 @@ Row
   add1[, Date := Date + 1]
   fees <- rbind(fees, add1)
   
-  if (nrow(fees) > 5) {
+  if (nrow(fees) > 5 & max(fees$`Swap Fees`) > 0) {
     dygraph(fees, main = "Swap Fees" %+% getText(feesStatus, madays))  %>% 
       dySeries("Swap Fees", stepPlot = TRUE, fill = TRUE, color = getColor(feesStatus)) %>%
       dySeries("Average", color = "blue") 
@@ -193,17 +193,17 @@ Row
   add1[, Date := Date + 1]
   tradeVolume <- rbind(tradeVolume, add1)
   
-  if (nrow(tradeVolume) > 5) {
+  if (nrow(tradeVolume) > 5 & max(tradeVolume$`Trading Volume`) > 0) {
     dygraph(tradeVolume, main = "Trading Volume" %+% getText(tradeVolumeStatus, madays))  %>% 
       dySeries("Trading Volume", stepPlot = TRUE, fill = TRUE, color = getColor(tradeVolumeStatus)) %>%
       dySeries("Average", color = "blue") 
   }
+  
 ```
 
 ### Daily Volume / Total Value Locked Ratio
 
 ```{r}
-
 
   tradeVolume <- resx[, sum(volumeUSDFloat), by = date] %>%
     setnames(c("Date","Trading Volume"))
@@ -296,7 +296,7 @@ Row
     
   }
 
-  if (!inherits(tmp, "try-error")) {
+  if (nrow(pos) > 0 & !inherits(tmp, "try-error")) {
 
     depositStatus <- dcast(pos, Date ~ Status, fun.aggregate = sum, value.var = 'depositVolumeUSD')
     debitStatus <- dcast(pos, Date ~ Status, fun.aggregate = sum, value.var = 'debitVolumeUSD')
@@ -323,7 +323,7 @@ Row
         dyStackedBarChart()
       
     } else {
-      p1 <- p2 <- p3 <- p4 <- p5 <- NULL
+      p1 <- p2 <- p3 <- p4 <- p5 <- "No Data Available."
     }
     
   }
@@ -367,11 +367,18 @@ p5
 
 ```{r}
 
-setorder(pos, Ratio)
-top5 <- pos[!is.nan(Ratio), .(Date, owner.id, collateral.id, depositVolumeUSD, debitVolumeUSD, Ratio, requiredCollateralRatio)][1:5]
+if (nrow(pos) > 0 ) {
+  
+  setorder(pos, Ratio)
+  top5 <- pos[!is.nan(Ratio), .(Date, owner.id, collateral.id, depositVolumeUSD, debitVolumeUSD, Ratio, requiredCollateralRatio)][1:5]
+  
+  mutate_if(top5, is.numeric, function(x) {cell_spec(x=round(x,2))}) %>%
+  kable(escape = FALSE, align = "r") %>%
+  kable_styling(c("striped", "condensed"), full_width = FALSE)
 
-mutate_if(top5, is.numeric, function(x) {cell_spec(x=round(x,2))}) %>%
-kable(escape = FALSE, align = "r") %>%
-kable_styling(c("striped", "condensed"), full_width = FALSE)
-
+} else {
+  
+  print("No Data Available.")
+  
+}
 ```
