@@ -5,7 +5,7 @@ output:
     orientation: rows
     vertical_layout: scroll
 params:
-  pair: "RMRK:TAI"
+  pair: "BNC:KUSD"
   xdays: 14
   madays: 7
   
@@ -239,7 +239,11 @@ Row
     l <- try(dcast(liq2[pair == params$pair], Date ~ type, value.var = 'volumeUSD'), silent = TRUE)
   }
 
-  if (!inherits(l, "try-error")) {
+  if (!inherits(l, "try-error") & nrow(l) > 0) {
+    
+    if (!('addLiquidity' %in% names(l))) l[, addLiquidity := 0] 
+    if (!('removeLiquidity' %in% names(l))) l[, removeLiquidity := 0] 
+    
     l[is.na(addLiquidity), addLiquidity := 0]
     l[is.na(removeLiquidity), removeLiquidity := 0]
     

@@ -532,7 +532,7 @@ volume_list <- list()
 # remove old params object before calling render with new params list
 rm(params)
 for (p in pairs$Pair) {
-  # p <- pairs$Pair[2]
+  # p <- pairs$Pair[10]
   
   try(rm(u_list, t_list, p_list, v_list), silent = TRUE)
   
@@ -608,6 +608,11 @@ Last updated: `r Sys.time()`
 Date range of data: `r min(swaps$timestamp)` to `r max(swaps$timestamp)`.
 
 Sources: 
-[SubQuery Network](https://explorer.subquery.network/)
-[Acala-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/acala-dex-subql)
-[Karura-Swap-Data](https://api.subquery.network/sq/rogerjbos/karura-dex-subql)
+* [SubQuery Network](https://explorer.subquery.network/)
+Swaps:
+* [Acala-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/acala-swap-day-data)
+* [Karura-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/karura-swap-day-data)
+Loans:
+* [Acala-Loan-Data](https://api.subquery.network/sq/rogerjbos/acala-loan-subql)
+* [Karura-Loan-Data](https://api.subquery.network/sq/rogerjbos/karura-loan-subql)
+
