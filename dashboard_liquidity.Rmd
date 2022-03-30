@@ -532,7 +532,7 @@ volume_list <- list()
 # remove old params object before calling render with new params list
 rm(params)
 for (p in pairs$Pair) {
-  # p <- pairs$Pair[2]
+  # p <- pairs$Pair[10]
   
   try(rm(u_list, t_list, p_list, v_list), silent = TRUE)
   
