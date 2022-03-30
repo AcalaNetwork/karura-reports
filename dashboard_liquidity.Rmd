@@ -610,4 +610,5 @@ Date range of data: `r min(swaps$timestamp)` to `r max(swaps$timestamp)`.
 Sources: 
 [SubQuery Network](https://explorer.subquery.network/)
 [Acala-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/acala-dex-subql)
-[Karura-Swap-Data](https://api.subquery.network/sq/rogerjbos/karura-dex-subql)
+[Karura-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/karura-dex-subql)
+
