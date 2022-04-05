@@ -608,7 +608,7 @@ Last updated: `r Sys.time()`
 Date range of data: `r min(swaps$timestamp)` to `r max(swaps$timestamp)`.
 
 Sources: 
-* [SubQuery Network](https://explorer.subquery.network/)
+[SubQuery Network](https://explorer.subquery.network/)
 Swaps:
 * [Acala-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/acala-swap-day-data)
 * [Karura-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/karura-swap-day-data)
