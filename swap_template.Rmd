@@ -5,7 +5,7 @@ output:
     orientation: rows
     vertical_layout: scroll
 params:
-  pair: "BNC:KUSD"
+  pair: "KSM:KAR"
   xdays: 14
   madays: 7
   
@@ -22,7 +22,6 @@ params:
 library(rmarkdown)
 library(flexdashboard)
 library(dygraphs)
-
 
 xdays <- params$xdays
 madays <- params$madays
@@ -367,14 +366,14 @@ p5
 
 # Risky Loans {.tabset}
 
-### Top 5 Risky Loans
+### Top 100 Risky Loans
 
 ```{r}
 
 if (nrow(pos) > 0 ) {
   
   setorder(pos, Ratio)
-  top5 <- pos[!is.nan(Ratio), .(Date, owner.id, collateral.id, depositVolumeUSD, debitVolumeUSD, Ratio, requiredCollateralRatio)][1:5]
+  top5 <- pos[!is.nan(Ratio), .(Date, owner.id, collateral.id, depositVolumeUSD, debitVolumeUSD, Ratio, requiredCollateralRatio)][1:100]
   
   mutate_if(top5, is.numeric, function(x) {cell_spec(x=round(x,2))}) %>%
   kable(escape = FALSE, align = "r") %>%
