@@ -1,0 +1,228 @@
+---
+title: "Acala / Karura Dashboards"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+params:
+  network: Acala
+  window: 14
+---
+
+```{css custom1, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
+
+```{r global, include=FALSE}
+
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+library(kableExtra)
+library(formattable)
+library(lubridate)
+library(flexdashboard)
+library(DT)
+source("subql_query.R")
+
+window <- params$window
+network <- params$network
+
+dailyLoanCollateral <- getLoansDailyCollateral_acala_loan(network, window)
+dailyLoanPositions <- getLoansDailyPositions_acala_loan(network, window)
+collaterParams <- getLoansCollateralParams_acala_loan(network)
+
+
+liquidity <- getLiquidity_acala(network, window)
+liquidity[, volumeUSD := as.numeric(volumeUSD) / 1e18]
+liq <- liquidity[, .(date, pair, type, volumeUSD)]
+liq2 <- liq[, .(.N, sum(volumeUSD)), by = .(pair, date, type)]
+setnames(liq2, c("date","N","V2"), c("Date","Observations","volumeUSD"))
+liq2[type == 'removeLiquidity', volumeUSD := -volumeUSD]
+
+
+liq <- liq[, .(.N, sum(volumeUSD)), by = .(date, type)]
+setnames(liq, c("date","N","V2"), c("Date","Observations","volumeUSD"))
+liq[type == 'removeLiquidity', volumeUSD := -volumeUSD]
+
+swaps2 <- getDailyPools_acala_dex(network, window)
+swaps <- getSwaps_acala_dex(network, window)
+# swaps <- getSwaps(official_endpoint, window)
+# swaps[, volumeUSDFloat := as.numeric(volumeUSD)]
+# swaps[volumeUSDFloat < 0]
+# swaps[volumeUSDFloat < 0, id]
+
+swaps <- merge(swaps, tokens, by.x='token0.id', by.y='Token') %>% setnames("decimals","decimals0")
+swaps[, Name := NULL]
+swaps <- merge(swaps, tokens, by.x='token1.id', by.y='Token') %>% setnames("decimals","decimals1")
+swaps[, Name := NULL]
+
+swaps[, adj0 := as.numeric(substr(as.character(1e20),1, as.numeric(decimals0) + 1))]
+swaps[, adj1 := as.numeric(substr(as.character(1e20),1, as.numeric(decimals1) + 1))]
+
+swaps[, token0InAmount := as.numeric(token0InAmount)]
+swaps[, token1OutAmount := as.numeric(token1OutAmount)]
+swaps[, price0 := as.numeric(price0) / 1e18]
+swaps[, price1 := as.numeric(price1) / 1e18]
+
+swaps[, amount0 := token0InAmount / adj0]
+swaps[, amount1 := token1OutAmount / adj1]
+
+swaps[, token0.id := fixToken(token0.id)]
+swaps[, token1.id := fixToken(token1.id)]
+swaps[, tradePath := fixToken(tradePath)]
+swaps[, pathLength := length(strsplit(tradePath, ",")[[1]]) - 1, by = id]
+
+swaps[, volume0USD := amount0 * price0]
+swaps[, volume1USD := amount1 * price1]
+swaps[, volumeUSDFloat := (volume0USD + volume1USD) / 2]
+swaps[volume0USD == 0 & volume1USD > 0, volumeUSDFloat := volume1USD]
+swaps[volume1USD == 0 & volume0USD > 0, volumeUSDFloat := volume0USD]
+
+mysort <- function(a, b) ifelse(a < b, a %+% ":" %+% b, b %+% ":" %+% a)
+
+getPath <- function(tradePath) {
+  # tradePath <- swaps[1]$tradePath
+  tp <- strsplit(tradePath, ",")[[1]]
+  n <- length(tp) - 1
+  if (n == 3) {
+    return(list(mysort(tp[1],tp[2]), mysort(tp[2],tp[3]), mysort(tp[3],tp[4])))
+  } else if (n == 2) {
+    return(list(mysort(tp[1],tp[2]), mysort(tp[2],tp[3]), "NA:NA"))
+  } 
+  list(mysort(tp[1],tp[2]), "NA:NA", "NA:NA")
+}
+swaps[, c("pair1", "pair2", "pair3") := getPath(tradePath), by = id]
+
+swaps[, fee := volumeUSDFloat * .03]
+swaps[, feeAdj := volumeUSDFloat * .03 * pathLength]
+setnames(swaps, "address.id", "accountId")
+
+
+pairs <- rbind(swaps[exclude == FALSE, .N, by = pair1] %>% setnames("pair1", "Pair"),
+              swaps[exclude == FALSE, .N, by = pair2] %>% setnames("pair2", "Pair"),
+              swaps[exclude == FALSE, .N, by = pair3] %>% setnames("pair3", "Pair"))
+pairs <- pairs[, sum(N), by = Pair]
+# remove pairs with NA in them
+pairs <- pairs[-grep("NA", pairs$Pair)]
+pairs <- rbind(data.table(Pair = "ALL", V1 = sum(pairs$V1)), pairs)
+pairs <- pairs[order(V1, decreasing = TRUE)] %>%
+  setnames(c("Pair", "Observations"))
+
+
+tvl <- swaps2[date == max(date)]
+stable_dex_pool_size <- tvl[grep("USD", tvl$pair), sum(abs(tvlUSD))]
+
+# Calculate measures for each pair
+user_status   <- list()
+trades_status <- list()
+tpu_status    <- list()
+volume_status <- list()
+
+users_list  <- list()
+trades_list <- list()
+per_list    <- list()
+volume_list <- list()
+
+# remove old params object before calling render with new params list
+rm(params)
+for (p in pairs$Pair) {
+  # p <- pairs$Pair[1]
+  
+  try(rm(u_list, t_list, p_list, v_list), silent = TRUE)
+  
+  outname <- "~/R_HOME/websites/web_acala/content/swap_" %+% network %+% "_" %+% p %+% ".html"
+  unlink(outname)
+  # Create report for each pair
+  rmarkdown::render("~/R_HOME/karura-reports/Swap_template.Rmd",
+                  output_file = outname,
+                  params = list(pair = p))
+  
+  # Store the data for the table
+  user_status[p]   <- activeUsersStatus
+  trades_status[p] <- tradesStatus
+  tpu_status[p]    <- avgTradeStatus
+  volume_status[p] <- tradeVolumeStatus
+  
+  users_list[[p]]  <- u_list
+  trades_list[[p]] <- t_list
+  per_list[[p]]    <- p_list
+  volume_list[[p]] <- v_list
+
+}
+
+  d <- list()
+  for (x in pairs$Pair) {
+    d[x] <- paste0('<span class="footText"><a CLASS="nav" href="/swap_', network, '_', x, '.html">', x, '</a></span>', collapse = '')
+  }
+
+  inline_plot <- data.frame(Count = pairs$Observations, 
+                            U_Growth = unlist(user_status),
+                            U_Trend = "",
+                            S_Growth = unlist(trades_status),
+                            S_Trend = "",
+                            TPU_Growth = unlist(tpu_status),
+                            TPU_Trend = "",
+                            V_Growth = unlist(volume_status),
+                            V_Trend = "")
+  row.names(inline_plot) <- unlist(d)
+
+  getSpecColor <- function(x) {
+    x[is.na(x)] <- 0
+    ifelse(x < 1, "red", "green")
+  }
+  
+  inline_plot$U_Growth <- cell_spec(inline_plot$U_Growth, color = getSpecColor(inline_plot$U_Growth))
+
+  inline_plot$S_Growth <- cell_spec(inline_plot$S_Growth, color = getSpecColor(inline_plot$S_Growth))
+  
+  inline_plot$TPU_Growth <- cell_spec(inline_plot$TPU_Growth, color = getSpecColor(inline_plot$TPU_Growth))
+
+  inline_plot$V_Growth <- cell_spec(inline_plot$V_Growth, color = getSpecColor(inline_plot$V_Growth))
+
+  p <- inline_plot %>%
+    kbl(booktabs = TRUE, escape = FALSE, align='rrrrrrrrr') %>%
+    add_header_above(c(" " = 1, " " = 1, "Active Users" = 2, "Swap Trades" = 2, "Trades Per User" = 2, "Trading Volume" = 2)) %>%  
+    kable_paper(full_width = FALSE) %>%
+    column_spec(4, image = spec_plot(users_list, same_lim = FALSE)) %>%
+    column_spec(6, image = spec_plot(trades_list, same_lim = FALSE)) %>%
+    column_spec(8, image = spec_plot(per_list, same_lim = FALSE)) %>%
+    column_spec(10, image = spec_plot(volume_list, same_lim = FALSE))
+
+```
+
+### `r network` Swap Performance Summary
+
+```{r plot_acala, result='asis', out.height = 12}
+p
+
+```
+
+Last updated: `r Sys.time()`
+
+Date range of data: `r min(swaps$timestamp)` to `r max(swaps$timestamp)`.
+
+Sources: 
+
+* [SubQuery Network](https://explorer.subquery.network/)
+
+Swaps:
+
+* [Acala-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/acala-swap-day-data)
+
+* [Karura-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/karura-swap-day-data)
+
+Loans:
+
+* [Acala-Loan-Data](https://api.subquery.network/sq/rogerjbos/acala-loan-subql)
+
+* [Karura-Loan-Data](https://api.subquery.network/sq/rogerjbos/karura-loan-subql)
+
+

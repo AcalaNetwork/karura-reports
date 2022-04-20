@@ -36,7 +36,9 @@ library(DT)
 
 fixToken <- function(x) {
   x <- gsub('fa://0', 'RMRK', x)
+  x <- gsub('ForeignAsset://0', 'RMRK', x)
   x <- gsub('lc://13', 'LCDOT', x)
+  x <- gsub('LiquidCrowdloan://13', 'LCDOT', x)
   x <- gsub('sa://0', 'taiKSM', x)
   x
 }
@@ -44,6 +46,7 @@ fixToken <- function(x) {
 tokens <- rbind(c("ACA", "Acala", 12),
                 c("AUSD","Acala Dollar", 12),
                 c("taiKSM","Taiga KSM", 12),
+                c("RMRK","RMRK", 10),
                 c("DOT","Polkadot", 10),
                 c("LCDOT","Liquid Crowdloan DOT", 10),
                 c("LDOT","Liquid DOT", 10),
@@ -716,11 +719,19 @@ Last updated: `r Sys.time()`
 Date range of data: `r min(swaps$timestamp)` to `r max(swaps$timestamp)`.
 
 Sources: 
+
 * [SubQuery Network](https://explorer.subquery.network/)
+
 Swaps:
+
 * [Acala-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/acala-swap-day-data)
+
 * [Karura-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/karura-swap-day-data)
+
 Loans:
+
 * [Acala-Loan-Data](https://api.subquery.network/sq/rogerjbos/acala-loan-subql)
+
 * [Karura-Loan-Data](https://api.subquery.network/sq/rogerjbos/karura-loan-subql)
+
 
