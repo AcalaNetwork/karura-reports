@@ -7,7 +7,7 @@ output:
     social: menu
     source_code: embed
 params:
-  network: Acala
+  network: Karura
   window: 14
 ---
 
@@ -59,9 +59,9 @@ swaps <- getSwaps_acala_dex(network, window)
 # swaps[volumeUSDFloat < 0]
 # swaps[volumeUSDFloat < 0, id]
 
-swaps <- merge(swaps, tokens, by.x='token0.id', by.y='Token') %>% setnames("decimals","decimals0")
+swaps <- merge(swaps, tokens, by.x='token0', by.y='Token') %>% setnames("decimals","decimals0")
 swaps[, Name := NULL]
-swaps <- merge(swaps, tokens, by.x='token1.id', by.y='Token') %>% setnames("decimals","decimals1")
+swaps <- merge(swaps, tokens, by.x='token1', by.y='Token') %>% setnames("decimals","decimals1")
 swaps[, Name := NULL]
 
 swaps[, adj0 := as.numeric(substr(as.character(1e20),1, as.numeric(decimals0) + 1))]
@@ -75,8 +75,8 @@ swaps[, price1 := as.numeric(price1) / 1e18]
 swaps[, amount0 := token0InAmount / adj0]
 swaps[, amount1 := token1OutAmount / adj1]
 
-swaps[, token0.id := fixToken(token0.id)]
-swaps[, token1.id := fixToken(token1.id)]
+swaps[, token0 := fixToken(token0)]
+swaps[, token1 := fixToken(token1)]
 swaps[, tradePath := fixToken(tradePath)]
 swaps[, pathLength := length(strsplit(tradePath, ",")[[1]]) - 1, by = id]
 
@@ -103,7 +103,7 @@ swaps[, c("pair1", "pair2", "pair3") := getPath(tradePath), by = id]
 
 swaps[, fee := volumeUSDFloat * .03]
 swaps[, feeAdj := volumeUSDFloat * .03 * pathLength]
-setnames(swaps, "address.id", "accountId")
+setnames(swaps, "address", "accountId")
 
 
 pairs <- rbind(swaps[exclude == FALSE, .N, by = pair1] %>% setnames("pair1", "Pair"),

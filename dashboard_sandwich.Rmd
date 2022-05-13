@@ -1,0 +1,278 @@
+---
+title: "Acala / Karura Sandwich Attack Dashboards"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+params:
+  network: Karura
+  window: 30
+---
+
+```{css custom1, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
+
+```{r global, include=FALSE}
+
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+library(kableExtra)
+library(formattable)
+library(lubridate)
+library(flexdashboard)
+library(DT)
+library(dygraphs)
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+
+
+# remotes::install_github("ropensci/ghql") # if package is not already installed
+library(jsonlite)
+library(data.table)
+library(ghql)
+x <- GraphqlClient$new()
+
+
+window <- params$window
+endpoint <- params$endpoint
+network <- params$network
+
+if (network == 'Acala') {
+  
+  dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala-dex"
+  loan_endpoint <- "https://api.subquery.network/sq/rogerjbos/acala-loan-subql"
+  swap_endpoint <- "https://api.subquery.network/sq/rogerjbos/acala-swap-day-data"
+  official_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala"
+  
+} else {
+
+  dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura-dex"
+  loan_endpoint <- "https://api.subquery.network/sq/rogerjbos/karura-loan-subql"
+  swap_endpoint <- "https://api.subquery.network/sq/rogerjbos/karura-test"
+  official_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura"
+
+}
+
+getSwapsDex <- function(endpoint, window) {
+  # endpoint <- dex_endpoint; window <- 10
+  
+  # make a client
+  cli <- GraphqlClient$new(url = endpoint)
+  mindate <- today(tzone = 'UTC') - window
+  
+  cursor <- ''
+  resList <- list()
+  for (i in 1:1000) {
+    if (cursor == '') {
+      cursorStr <- 'first:100'
+    } else {
+      cursorStr <- 'first:100 after:"' %+% cursor %+% '"'
+    }
+    qry <- Query$new()
+    qry$query('swaps', '
+    {
+      query {
+        swaps (filter: {timestamp: {greaterThanOrEqualTo: "' %+% mindate %+% '"}} ' %+% cursorStr %+% ') {
+          totalCount
+          edges {
+            node { 
+                id address {
+                  id
+                } pool {
+                  id
+                }  token0 {
+                  id
+                } token1 {
+                  id
+                } token0InAmount token1OutAmount
+							  tradePath price0 price1 block {
+							    id
+							  } extrinsic {
+							    id
+							  } timestamp
+            }
+            cursor
+          }
+          pageInfo {
+            endCursor
+            hasNextPage
+          }
+        }
+      }
+    }')
+    result <- cli$exec(qry$queries$swaps)  %>%
+      fromJSON(flatten=TRUE)
+    cursor <- result$data$query$swaps$pageInfo$endCursor
+    res <- as.data.table(result$data$query$swaps$edges)
+    res[, cursor := NULL]
+    
+    print(i %+% " " %+% nrow(res))
+    resList[[i]] <- res
+    if (result$data$query$swaps$pageInfo$hasNextPage == FALSE) break
+  }
+  res <- rbindlist(resList)
+  setnames(res, old = names(res), new = gsub("node.", "", names(res)))
+  
+  if (substr(max(res$timestamp), 12, 13) < 23) {
+    maxdate <- as.Date(max(res$timestamp))-1
+  } else {
+    maxdate <- as.Date(max(res$timestamp))
+  }
+  
+  res <- res[timestamp <= maxdate]
+  res[, date := as.Date(timestamp)]
+  setorder(res, timestamp)
+  
+  # Replace foreign assets
+  res[, token0.id := subscanr::fixToken(token0.id)]
+  res[, token1.id := subscanr::fixToken(token1.id)]
+
+  # Normalize pairs
+  res[, pair := paste0(token0.id %+% ":" %+% token1.id)]
+  res[token1.id < token0.id, pair := paste0(token1.id %+% ":" %+% token0.id)]
+  res[, exclude := token0.id == token1.id]
+  res  
+  
+}
+
+
+# queries ####
+# swaps2 <- getDailyPoolsQuery(dex_endpoint, window)
+swaps <- getSwapsDex(dex_endpoint, window)
+
+swaps <- merge(swaps, subscanr::tokens, by.x='token0.id', by.y='Token') %>% setnames("decimals","decimals0")
+swaps[, Name := NULL]
+swaps <- merge(swaps, subscanr::tokens, by.x='token1.id', by.y='Token') %>% setnames("decimals","decimals1")
+swaps[, Name := NULL]
+
+swaps[, adj0 := as.numeric(substr(as.character(1e20),1, as.numeric(decimals0) + 1))]
+swaps[, adj1 := as.numeric(substr(as.character(1e20),1, as.numeric(decimals1) + 1))]
+
+swaps[, token0InAmount := as.numeric(token0InAmount)]
+swaps[, token1OutAmount := as.numeric(token1OutAmount)]
+swaps[, price0 := as.numeric(price0) / 1e18]
+swaps[, price1 := as.numeric(price1) / 1e18]
+
+swaps[, amount0 := token0InAmount / adj0]
+swaps[, amount1 := token1OutAmount / adj1]
+
+swaps[, token0.id := subscanr::fixToken(token0.id)]
+swaps[, token1.id := subscanr::fixToken(token1.id)]
+swaps[, tradePath := subscanr::fixToken(tradePath)]
+swaps[, pathLength := length(strsplit(tradePath, ",")[[1]]) - 1, by = id]
+
+swaps[, volume0USD := amount0 * price0]
+swaps[, volume1USD := amount1 * price1]
+swaps[, volumeUSDFloat := (volume0USD + volume1USD) / 2]
+swaps[volume0USD == 0 & volume1USD > 0, volumeUSDFloat := volume1USD]
+swaps[volume1USD == 0 & volume0USD > 0, volumeUSDFloat := volume0USD]
+
+mysort <- function(a, b) ifelse(a < b, a %+% ":" %+% b, b %+% ":" %+% a)
+
+getPath <- function(tradePath) {
+  # tradePath <- swaps[1]$tradePath
+  tp <- strsplit(tradePath, ",")[[1]]
+  n <- length(tp) - 1
+  if (n == 3) {
+    return(list(mysort(tp[1],tp[2]), mysort(tp[2],tp[3]), mysort(tp[3],tp[4])))
+  } else if (n == 2) {
+    return(list(mysort(tp[1],tp[2]), mysort(tp[2],tp[3]), "NA:NA"))
+  } 
+  list(mysort(tp[1],tp[2]), "NA:NA", "NA:NA")
+}
+swaps[, c("pair1", "pair2", "pair3") := getPath(tradePath), by = id]
+
+swaps[, fee := volumeUSDFloat * .03]
+swaps[, feeAdj := volumeUSDFloat * .03 * pathLength]
+setnames(swaps, "address.id", "accountId")
+
+
+index <- strsplit(swaps$id, "-")
+index <- do.call("rbind", index)
+myindex <- as.numeric(index[, 2])
+swaps[, index := myindex]
+setorder(swaps, block.id, index)
+
+starti <- 1829970 #  min(swaps$block.id) #
+endi <- max(swaps$block.id)
+
+
+j <- 1
+d <- list()
+prof <- list()
+for (i in starti:endi) {
+  # i <- 1829970
+  tmp <- swaps[block.id == i]
+  tmpn <- tmp[, .N, by = 'accountId']
+
+  # Look for the same account number 2 times in the same block
+  if (nrow(tmpn) >= 2 && max(tmpn$N) >= 2) {
+    acct <- tmp[, .N, by = 'accountId'][N >= 2, accountId]
+    for (account in acct) {
+      # account <- acct[1]
+      for (ii in 1:(nrow(tmp) - 2)) {
+      
+          if (tmp$token0.id[ii] == tmp$token1.id[ii+2] && 
+              tmp$token1.id[ii] == tmp$token0.id[ii+2] && 
+              tmp$accountId[ii] == tmp$accountId[[ii+2]] &&
+              tmp$accountId[ii] != tmp$accountId[[ii+1]] &&
+              length(grep(tmp$token0.id[ii], tmp$tradePath[ii+1])) > 0 && 
+              length(grep(tmp$token1.id[ii], tmp$tradePath[ii+1])) > 0) {
+            d[[j]] <- tmp[, .(block.id, index, token0.id, token1.id, tradePath, token0InAmount, token1OutAmount, price0, price1, timestamp, accountId)][ii:(ii+2)] 
+            prof[[j]] = data.table(block.id = tmp$block.id[ii], time = tmp$timestamp[ii], attacker = tmp$accountId[ii], target = tmp$accountId[ii+1], profit = as.numeric(tmp$token1OutAmount[ii+2]) - as.numeric(tmp$token0InAmount[ii]), currency = tmp$token0.id[ii])
+            j <- j + 1  
+          }
+      } # end for ii
+    } # end for account
+  }
+}
+out <- rbindlist(d)
+p <- rbindlist(prof)
+output <- unique(p)
+output[, profit := profit / 1e12]
+output[, attacker := substr(attacker, 1, 8) %+% "..."]
+output[, target := substr(target, 1, 8) %+% "..."]
+
+```
+
+### `r network` sandwich attacks in the past 30 days
+
+```{r plot, result='asis', out.height = 12}
+
+dygraph(output[, .N, by = as.Date(time)], main = network %+% " Sandwich Attacks") %>% 
+        dyStackedBarChart()
+
+```
+
+```{r table}
+
+knitr::kable(output, escape = FALSE) %>%
+  kable_styling()
+
+```
+
+Last updated: `r Sys.time()`
+
+Date range of data: `r min(swaps$timestamp)` to `r max(swaps$timestamp)`.
+
+Sources: 
+
+* [SubQuery Network](https://explorer.subquery.network/)
+
+Swaps:
+
+* [Acala-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/acala-swap-day-data)
+
+* [Karura-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/karura-swap-day-data)
+

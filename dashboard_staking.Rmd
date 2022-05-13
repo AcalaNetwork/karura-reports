@@ -1,0 +1,284 @@
+---
+title: "Acala / Karura Staking Dashboards"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+---
+
+```{css custom1, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
+
+```{r global, include=FALSE}
+library(knitr)
+
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+
+library(kableExtra)
+library(formattable)
+library(lubridate)
+library(flexdashboard)
+library(DT)
+library(subscanr)
+library(ghql)
+x <- GraphqlClient$new()
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+```
+
+```{r tokens, cache = TRUE, include=FALSE}
+
+endpage <- 2e9
+
+KSM_tokens <- getAccountBalance_acala_token("karura", window = 1, filter = 'filter: {tokenId: {in: ["KSM","LKSM"]}, total: {greaterThan: "0"}} ', endpage = endpage)
+KSM_token_wide <- dcast(KSM_tokens, accountId ~ tokenId, value.var = 'total')
+
+# DOT_tokens <- getAccountBalance_acala_token("acala", window = 1, filter = 'filter: {total: {greaterThan: "0"}} ', endpage = endpage)
+DOT_tokens <- getAccountBalance_acala_token("acala", window = 1, filter = '', endpage = endpage)
+DOT_token_wide <- dcast(DOT_tokens, accountId ~ tokenId, value.var = 'total')
+
+```
+
+```{r loans, cache = TRUE, include=FALSE}
+
+aUSD_karura <- getAccountBalance_acala_token("karura", window = 1, filter = 'filter: {tokenId: {in: ["ACA","KUSD","AUSD"]}, total: {greaterThan: "0"}} ', endpage = endpage)
+aUSD_karura_wide <- dcast(aUSD_karura, accountId ~ tokenId, value.var = 'total')
+
+
+aUSD_acala <- getAccountBalance_acala_token("acala", window = 1, filter = 'filter: {tokenId: {in: ["ACA","KUSD","AUSD"]}, total: {greaterThan: "0"}} ', endpage = endpage)
+aUSD_acala_wide <- dcast(aUSD_acala, accountId ~ tokenId, value.var = 'total')
+
+
+loans_acala <- getPositions_acala_loan("acala", window = 1, filter = 'filter: {collateralId: {in: ["aUSD","kUSD","ACA","DOT","LDOT","KSM","LKSM"]}} ', endpage = endpage)
+loans_acala_wide <- dcast(loans_acala, ownerId ~ collateralId, value.var = c('debitAmount','depositAmount'))
+
+
+loans_karura <- getPositions_acala_loan("karura", window = 1, filter = 'filter: {collateralId: {in: ["aUSD","kUSD","ACA","DOT","LDOT","KSM","LKSM"]}} ', endpage = endpage)
+loans_karura_wide <- dcast(loans_karura, ownerId ~ collateralId, value.var = c('debitAmount','depositAmount'))
+
+```
+
+```{r balances}
+
+karura_addr <- merge(KSM_token_wide, aUSD_karura_wide, by = 'accountId', all = TRUE)
+karura_addr <- merge(karura_addr, loans_karura_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
+
+acala_addr <- merge(DOT_token_wide, aUSD_acala_wide, by = 'accountId', all.x = TRUE)
+acala_addr <- merge(acala_addr, loans_acala_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
+
+```
+
+# Karura {.tabset}
+
+Row
+----
+
+### KSM analysis based on `r karura_addr[, .N]` users
+
+1) None = Default
+2) KSM on Karura but no LKSM = Karura KSM Balance > 0
+3) LKSM User = LKSM Balance > 0
+4) LP User = depositAmount_LKSM > 0
+
+```{r KSM}
+
+# KSM
+# KSM on Kusama only
+# KSM on Karura but no LKSM
+# LKSM user
+# LP user
+ksm_n <- karura_addr[, .N]
+karura_addr[, KSM_Status := '1) None']
+karura_addr[KSM > 0, KSM_Status := '2) KSM on Karura but no LKSM']
+karura_addr[LKSM > 0, KSM_Status := '3) LKSM User']
+karura_addr[depositAmount_LKSM > 0, KSM_Status := '4) LP User']
+ksm_tbl <- karura_addr[, .N, by = 'KSM_Status'] %>%
+  setorder(KSM_Status)
+ksm_tbl2 <- karura_addr[, 100*round(.N / ksm_n, 3), by = 'KSM_Status'] %>%
+  setnames("V1", "Percent (%)") %>%
+  setorder(KSM_Status)
+ksm_tbl <- merge(ksm_tbl, ksm_tbl2)
+
+knitr::kable(ksm_tbl, escape = FALSE, align = c("l",rep("r",3))) %>%
+  kable_styling()
+
+```
+
+Row
+----
+
+### AUSD (on Karura) analysis based on `r karura_addr[, .N]` users
+
+1) None = Default
+2) AUSD Vault Open = depositAmount_KSM > 0 OR depositAmount_LKSM > 0
+3) Vault open but no AUSD minted = depositAmount_KSM > 0 OR depositAmount_LKSM > 0 AND (is.na(debitAmount_KSM) AND is.na(debitAmount_LKSM)
+
+```{r KUSD}
+
+# aUSD
+# No aUSD
+# aUSD holder
+# aUSD vault open
+# Vault open but no aUSD minted
+ausd_karura_n <- karura_addr[, .N]
+karura_addr[, AUSD_Status := '1) None']
+karura_addr[AUSD > 0, AUSD_Status := '2) AUSD Holder']
+karura_addr[depositAmount_KSM > 0 | depositAmount_LKSM > 0, AUSD_Status := '3) AUSD Vault Open']
+karura_addr[depositAmount_KSM > 0 | depositAmount_LKSM > 0 & (is.na(debitAmount_KSM) & is.na(debitAmount_LKSM)), AUSD_Status := '4) Vault open but no AUSD minted']
+ausd_tbl <- karura_addr[, .N, by = 'AUSD_Status'] %>%
+  setorder(AUSD_Status)
+ausd_tbl2 <- karura_addr[, 100*round(.N / ausd_karura_n, 3), by = 'AUSD_Status'] %>%
+  setnames("V1", "Percent (%)") %>%
+  setorder(AUSD_Status)
+
+ausd_tbl <- merge(ausd_tbl, ausd_tbl2)
+
+knitr::kable(ausd_tbl, escape = FALSE, align = c("l",rep("r",3))) %>%
+  kable_styling()
+
+```
+
+
+# Acala {.tabset}
+
+Row
+----
+
+### DOT analysis based on `r acala_addr[, .N]` users
+
+1) None = Default
+2) DOT on Acala but no LDOT = Acala DOT Balance > 0
+3) LDOT User = LDOT Balance > 0
+4) LP User = depositAmount_LDOT > 0
+
+```{r DOT}
+
+# DOT
+# DOT on Acala but not LDOT
+# LDOT users
+# LP user
+dot_n <- acala_addr[, .N]
+acala_addr[, DOT_Status := '1) None']
+acala_addr[DOT > 0, DOT_Status := '2) DOT on Acala but no LDOT']
+acala_addr[LDOT > 0, DOT_Status := '3) LDOT User']
+acala_addr[depositAmount_LDOT > 0, DOT_Status := '4) LP User']
+dot_tbl <- acala_addr[, .N, by = 'DOT_Status'] %>%
+  setorder(DOT_Status)
+dot_tbl2 <- acala_addr[, 100*round(.N / dot_n, 3), by = 'DOT_Status'] %>%
+  setnames("V1", "Percent (%)") %>%
+  setorder(DOT_Status)
+
+dot_tbl <- merge(dot_tbl, dot_tbl2)
+
+knitr::kable(dot_tbl, escape = FALSE, align = c("l",rep("r",3))) %>%
+  kable_styling()
+
+```
+
+Row
+----
+
+### AUSD (on Acala) analysis based on `r acala_addr[, .N]` users
+
+1) None = Default
+2) AUSD Holder = AUSD Balance > 0
+3) AUSD Vault Open = depositAmount_KSM > 0 OR depositAmount_LKSM > 0
+4) Vault open but no AUSD minted = depositAmount_KSM > 0 OR depositAmount_LKSM > 0 AND (is.na(debitAmount_KSM) AND is.na(debitAmount_LKSM)
+
+```{r AUSD}
+
+# aUSD
+# No aUSD
+# aUSD holder
+# aUSD vault open
+# Vault open but no aUSD minted
+
+ausd_acala_n <- acala_addr[, .N]
+acala_addr[, AUSD_Status := '1) None']
+acala_addr[AUSD > 0, AUSD_Status := '2) AUSD Holder']
+acala_addr[depositAmount_ACA > 0 | depositAmount_DOT > 0 | depositAmount_LDOT > 0, AUSD_Status := '3) AUSD Vault Open']
+acala_addr[depositAmount_ACA > 0 | depositAmount_DOT > 0 | depositAmount_LDOT > 0 & (is.na(debitAmount_ACA) & is.na(debitAmount_DOT) & is.na(debitAmount_LDOT)), AUSD_Status := '4) Vault open but no AUSD minted']
+ausd_tbl <- acala_addr[, .N, by = 'AUSD_Status'] %>%
+  setorder(AUSD_Status)
+ausd_tbl2 <- acala_addr[, 100*round(.N / ausd_acala_n, 3), by = 'AUSD_Status'] %>%
+  setnames("V1", "Percent (%)") %>%
+  setorder(AUSD_Status)
+
+ausd_tbl <- merge(ausd_tbl, ausd_tbl2)
+
+knitr::kable(ausd_tbl, escape = FALSE, align = c("l",rep("r",3))) %>%
+  kable_styling()
+
+```
+
+Row
+----
+
+### ACA analysis based on `r acala_addr[, .N]` users
+
+1) None = Default
+2) ACA Staker = depositAmount_ACA > 0
+3) No ACA Staking = ACA Balance > 0 
+4) No ACA = is.na(ACA Balance)
+
+```{r ACA}
+
+# names(acala_addr)
+# summary(acala_addr$debitAmount_ACA)
+# summary(acala_addr$depositAmount_ACA)
+# summary(loans_acala_wide$debitAmount_ACA)
+# summary(loans_acala_wide$depositAmount_ACA)
+# 
+# tmp <- loans_acala_wide[, .(ownerId, debitAmount_ACA,depositAmount_ACA)]
+# tmp <- merge(tmp, acala_addr[, .(accountId, ACA, ACA_Status)], by.x = "ownerId", by.y="accountId", all = TRUE)
+
+                        
+# ACA
+# ACA staker
+# No ACA staking
+# No ACA
+aca_n <- acala_addr[, .N]
+acala_addr[, ACA_Status := '1) None']
+acala_addr[depositAmount_ACA > 0, ACA_Status := '2) ACA Staker']
+acala_addr[ACA > 0 && is.na(depositAmount_ACA), ACA_Status := '3) No ACA Staking']
+acala_addr[is.na(ACA) | ACA == 0, ACA_Status := '4) No ACA']
+aca_tbl <- acala_addr[, .N, by = 'ACA_Status'] %>%
+  setorder(ACA_Status)
+aca_tbl2 <- acala_addr[, 100*round(.N / aca_n, 3), by = 'ACA_Status'] %>%
+  setnames("V1", "Percent (%)") %>%
+  setorder(ACA_Status)
+
+aca_tbl <- merge(aca_tbl, aca_tbl2)
+
+knitr::kable(aca_tbl, escape = FALSE, align = c("l",rep("r",2)) ) %>%
+  kable_styling()
+
+
+```
+
+# Methodologh {.tabset}
+
+* The Subquery Network _Acala Tokens_ project was used to get balances on Acala for DOT, LDOT, ACA, and AUSD and the *Karura Tokens* project was used for Karura for KSM, LKSM, and AUSD.
+  - https://explorer.subquery.network/subquery/AcalaNetwork/acala-tokens
+  - https://explorer.subquery.network/subquery/AcalaNetwork/karura-tokens
+  
+* The Subquery Network *Acala Loans* project was used to get deposit and debit balances on Acala for DOT, LDOT, ACA, and AUSD and the *Karura Loans* project was used for Karura for KSM, LKSM, and AUSD.
+  - https://explorer.subquery.network/subquery/AcalaNetwork/acala-loans
+  - https://explorer.subquery.network/subquery/AcalaNetwork/karura-loan
+  
+* The methodology for each Token is summarized in that section.
+
+* The Acala / Karura data is as of `r Sys.time()`. 
+
