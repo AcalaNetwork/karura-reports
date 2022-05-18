@@ -7,7 +7,7 @@ output:
     social: menu
     source_code: embed
 params:
-  network: Acala
+  network: Karura
   window: 14
 ---
 
@@ -34,14 +34,14 @@ library(DT)
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
-fixToken <- function(x) {
-  x <- gsub('fa://0', 'RMRK', x)
-  x <- gsub('ForeignAsset://0', 'RMRK', x)
-  x <- gsub('lc://13', 'LCDOT', x)
-  x <- gsub('LiquidCrowdloan://13', 'LCDOT', x)
-  x <- gsub('sa://0', 'taiKSM', x)
-  x
-}
+# fixToken <- function(x) {
+#   x <- gsub('fa://0', 'RMRK', x)
+#   x <- gsub('ForeignAsset://0', 'RMRK', x)
+#   x <- gsub('lc://13', 'LCDOT', x)
+#   x <- gsub('LiquidCrowdloan://13', 'LCDOT', x)
+#   x <- gsub('sa://0', 'taiKSM', x)
+#   x
+# }
 
 tokens <- rbind(c("ACA", "Acala", 12),
                 c("AUSD","Acala Dollar", 12),
