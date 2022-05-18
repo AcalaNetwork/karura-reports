@@ -34,36 +34,27 @@ library(DT)
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
-# fixToken <- function(x) {
-#   x <- gsub('fa://0', 'RMRK', x)
-#   x <- gsub('ForeignAsset://0', 'RMRK', x)
-#   x <- gsub('lc://13', 'LCDOT', x)
-#   x <- gsub('LiquidCrowdloan://13', 'LCDOT', x)
-#   x <- gsub('sa://0', 'taiKSM', x)
-#   x
-# }
-
-tokens <- rbind(c("ACA", "Acala", 12),
-                c("AUSD","Acala Dollar", 12),
-                c("taiKSM","Taiga KSM", 12),
-                c("RMRK","RMRK", 10),
-                c("DOT","Polkadot", 10),
-                c("LCDOT","Liquid Crowdloan DOT", 10),
-                c("LDOT","Liquid DOT", 10),
-                c("RENBTC","Ren Protocol BTC", 8),
-                c("CASH","Compound CASH", 8),
-                c("KAR","Karura", 12),
-                c("KUSD","Karura Dollar", 12),
-                c("KSM","Kusama", 12),
-                c("LKSM","Liquid KSM", 12),
-                c("TAI","Taiga", 12),
-                c("BNC","Bifrost Asgard", 12),
-                c("VSKSM","Bifrost Voucher Slot KSM", 12),
-                c("PHA","Phala Native Token", 12),
-                c("KINT","Kintsugi Native Token", 12),
-                c("KBTC","Kintsugi Wrapped BTC", 8)) %>%
-  as.data.table %>%
-  setnames(c("Token","Name","decimals"))
+# tokens <- rbind(c("ACA", "Acala", 12),
+#                 c("AUSD","Acala Dollar", 12),
+#                 c("taiKSM","Taiga KSM", 12),
+#                 c("RMRK","RMRK", 10),
+#                 c("DOT","Polkadot", 10),
+#                 c("LCDOT","Liquid Crowdloan DOT", 10),
+#                 c("LDOT","Liquid DOT", 10),
+#                 c("RENBTC","Ren Protocol BTC", 8),
+#                 c("CASH","Compound CASH", 8),
+#                 c("KAR","Karura", 12),
+#                 c("KUSD","Karura Dollar", 12),
+#                 c("KSM","Kusama", 12),
+#                 c("LKSM","Liquid KSM", 12),
+#                 c("TAI","Taiga", 12),
+#                 c("BNC","Bifrost Asgard", 12),
+#                 c("VSKSM","Bifrost Voucher Slot KSM", 12),
+#                 c("PHA","Phala Native Token", 12),
+#                 c("KINT","Kintsugi Native Token", 12),
+#                 c("KBTC","Kintsugi Wrapped BTC", 8)) %>%
+#   as.data.table %>%
+#   setnames(c("Token","Name","decimals"))
 
 
 # remotes::install_github("ropensci/ghql") # if package is not already installed
@@ -80,15 +71,15 @@ network <- params$network
 if (network == 'Acala') {
   
   dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala-dex"
-  loan_endpoint <- "https://api.subquery.network/sq/rogerjbos/acala-loan-subql"
-  swap_endpoint <- "https://api.subquery.network/sq/rogerjbos/acala-swap-day-data"
+  loan_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala-loans"
+  swap_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala-swap-day-data"
   official_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala"
   
 } else {
 
   dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura-dex"
-  loan_endpoint <- "https://api.subquery.network/sq/rogerjbos/karura-loan-subql"
-  swap_endpoint <- "https://api.subquery.network/sq/rogerjbos/karura-test"
+  loan_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura-loan"
+  swap_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura-test"
   official_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura"
 
 }
@@ -150,8 +141,8 @@ getSwaps <- function(endpoint, window) {
   setorder(res, timestamp)
   
   # Replace foreign assets
-  res[, token0Id := fixToken(token0Id)]
-  res[, token1Id := fixToken(token1Id)]
+  res[, token0Id := subscanr::fixToken(token0Id)]
+  res[, token1Id := subscanr::fixToken(token1Id)]
 
   # Normalize pairs
   res[, pair := paste0(token0Id %+% ":" %+% token1Id)]
@@ -215,8 +206,8 @@ getDailyPoolsQuery <- function(endpoint, window) {
            c("token0Id", "token1Id", "volumeUSD", "tvlUSD", "feeUSD"))
 
   # Replace foreign assets
-  res[, token0Id := fixToken(token0Id)]
-  res[, token1Id := fixToken(token1Id)]
+  res[, token0Id := subscanr::fixToken(token0Id)]
+  res[, token1Id := subscanr::fixToken(token1Id)]
 
   # Normalize pairs
   res[, pair := paste0(token0Id %+% ":" %+% token1Id)]
@@ -279,8 +270,8 @@ liquidityQuery <- function(endpoint, window) {
   setorder(res, date)
   
   # Replace foreign assets
-  res[, token0Id := fixToken(token0Id)]
-  res[, token1Id := fixToken(token1Id)]
+  res[, token0Id := subscanr::fixToken(token0Id)]
+  res[, token1Id := subscanr::fixToken(token1Id)]
 
   # Normalize pairs
   res[, pair := paste0(token0Id %+% ":" %+% token1Id)]
@@ -314,8 +305,8 @@ getLoansCollateralParamsQuery <- function(endpoint) {
   res <- as.data.table(result$data$query[[method]]$nodes)
 
   # Replace foreign assets
-  res[, collateral.id := fixToken(collateral.id)]
-  res <- merge(res, tokens, by.x='collateral.id', by.y='Token')
+  res[, collateral.id := subscanr::fixToken(collateral.id)]
+  res <- merge(res, subscanr::tokens, by.x='collateral.id', by.y='Token')
 
   res[, adj := as.numeric(substr(as.character(1e20),1, as.numeric(decimals) + 1))]
   res[, maximumTotalDebitValue := as.numeric(maximumTotalDebitValue) / as.numeric(adj)]  
@@ -375,8 +366,8 @@ getLoansDailyPositionsQuery <- function(endpoint, window) {
   res <- rbindlist(resList) %>% 
     setnames(names(res), gsub("node.", "", names(res)))
   res[, Date := as.Date(timestamp)]
-  res[, collateral.id := fixToken(collateral.id)]
-  res <- merge(res, tokens, by.x='collateral.id', by.y='Token')
+  res[, collateral.id := subscanr::fixToken(collateral.id)]
+  res <- merge(res, subscanr::tokens, by.x='collateral.id', by.y='Token')
 
   res[, adj := as.numeric(substr(as.character(1e20),1, as.numeric(decimals) + 1))]
   res[, depositAmount := as.numeric(depositAmount) / adj]
@@ -440,8 +431,8 @@ getLoansDailyCollateralQuery <- function(endpoint, window) {
   res <- rbindlist(resList) %>% 
     setnames(names(res), gsub("node.", "", names(res)))
   res[, Date := as.Date(timestamp)]
-  res[, collateral.id := fixToken(collateral.id)]
-  res <- merge(res, tokens, by.x='collateral.id', by.y='Token')
+  res[, collateral.id := subscanr::fixToken(collateral.id)]
+  res <- merge(res, subscanr::tokens, by.x='collateral.id', by.y='Token')
 
   res[, adj := as.numeric(substr(as.character(1e20),1, as.numeric(decimals) + 1))]
   res[, depositAmount := as.numeric(depositAmount) / adj]
@@ -527,8 +518,8 @@ getSwapsDex <- function(endpoint, window) {
   setorder(res, timestamp)
   
   # Replace foreign assets
-  res[, token0.id := fixToken(token0.id)]
-  res[, token1.id := fixToken(token1.id)]
+  res[, token0.id := subscanr::fixToken(token0.id)]
+  res[, token1.id := subscanr::fixToken(token1.id)]
 
   # Normalize pairs
   res[, pair := paste0(token0.id %+% ":" %+% token1.id)]
@@ -539,14 +530,24 @@ getSwapsDex <- function(endpoint, window) {
 }
 
 
+```
+
+
+```{r q1}
+print(loan_endpoint)
 # queries ####
-
-
 dailyLoanCollateral <- getLoansDailyCollateralQuery(loan_endpoint, window)
+```
+
+```{r q2}
 dailyLoanPositions <- getLoansDailyPositionsQuery(loan_endpoint, window)
+```
+
+```{r q3}
 collaterParams <- getLoansCollateralParamsQuery(loan_endpoint)
+```
 
-
+```{r q4}
 liquidity <- liquidityQuery(swap_endpoint, window)
 liquidity[, volumeUSD := as.numeric(volumeUSD) / 1e18]
 liq <- liquidity[, .(date, pair, type, volumeUSD)]
@@ -558,6 +559,9 @@ liq2[type == 'removeLiquidity', volumeUSD := -volumeUSD]
 liq <- liq[, .(.N, sum(volumeUSD)), by = .(date, type)]
 setnames(liq, c("date","N","V2"), c("Date","Observations","volumeUSD"))
 liq[type == 'removeLiquidity', volumeUSD := -volumeUSD]
+```
+
+```{r q6}
 
 # swaps2 <- getSwapsByDay(swap_endpoint, window)
 swaps2 <- getDailyPoolsQuery(dex_endpoint, window)
@@ -567,9 +571,9 @@ swaps <- getSwapsDex(dex_endpoint, window)
 # swaps[volumeUSDFloat < 0]
 # swaps[volumeUSDFloat < 0, id]
 
-swaps <- merge(swaps, tokens, by.x='token0.id', by.y='Token') %>% setnames("decimals","decimals0")
+swaps <- merge(swaps, subscanr::tokens, by.x='token0.id', by.y='Token') %>% setnames("decimals","decimals0")
 swaps[, Name := NULL]
-swaps <- merge(swaps, tokens, by.x='token1.id', by.y='Token') %>% setnames("decimals","decimals1")
+swaps <- merge(swaps, subscanr::tokens, by.x='token1.id', by.y='Token') %>% setnames("decimals","decimals1")
 swaps[, Name := NULL]
 
 swaps[, adj0 := as.numeric(substr(as.character(1e20),1, as.numeric(decimals0) + 1))]
@@ -583,9 +587,9 @@ swaps[, price1 := as.numeric(price1) / 1e18]
 swaps[, amount0 := token0InAmount / adj0]
 swaps[, amount1 := token1OutAmount / adj1]
 
-swaps[, token0.id := fixToken(token0.id)]
-swaps[, token1.id := fixToken(token1.id)]
-swaps[, tradePath := fixToken(tradePath)]
+swaps[, token0.id := subscanr::fixToken(token0.id)]
+swaps[, token1.id := subscanr::fixToken(token1.id)]
+swaps[, tradePath := subscanr::fixToken(tradePath)]
 swaps[, pathLength := length(strsplit(tradePath, ",")[[1]]) - 1, by = id]
 
 swaps[, volume0USD := amount0 * price0]
