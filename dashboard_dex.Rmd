@@ -529,25 +529,10 @@ getSwapsDex <- function(endpoint, window) {
   
 }
 
-
-```
-
-
-```{r q1}
-print(loan_endpoint)
 # queries ####
 dailyLoanCollateral <- getLoansDailyCollateralQuery(loan_endpoint, window)
-```
-
-```{r q2}
 dailyLoanPositions <- getLoansDailyPositionsQuery(loan_endpoint, window)
-```
-
-```{r q3}
 collaterParams <- getLoansCollateralParamsQuery(loan_endpoint)
-```
-
-```{r q4}
 liquidity <- liquidityQuery(swap_endpoint, window)
 liquidity[, volumeUSD := as.numeric(volumeUSD) / 1e18]
 liq <- liquidity[, .(date, pair, type, volumeUSD)]
@@ -559,9 +544,6 @@ liq2[type == 'removeLiquidity', volumeUSD := -volumeUSD]
 liq <- liq[, .(.N, sum(volumeUSD)), by = .(date, type)]
 setnames(liq, c("date","N","V2"), c("Date","Observations","volumeUSD"))
 liq[type == 'removeLiquidity', volumeUSD := -volumeUSD]
-```
-
-```{r q6}
 
 # swaps2 <- getSwapsByDay(swap_endpoint, window)
 swaps2 <- getDailyPoolsQuery(dex_endpoint, window)
