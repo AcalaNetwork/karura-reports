@@ -1,0 +1,551 @@
+---
+title: "Acala / Karura Token Dashboard"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+---
+
+```{css custom1, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
+
+```{r global, include=FALSE}
+# web3.py
+# eth95.dev
+library(knitr)
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+library(dygraphs)
+library(kableExtra)
+library(formattable)
+library(lubridate)
+library(flexdashboard)
+library(DT)
+library(subscanr)
+library(ghql)
+x <- GraphqlClient$new()
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+library(reticulate)
+use_python("/opt/homebrew/bin/python3.9")
+
+```
+
+```{python}
+from substrateinterface import SubstrateInterface
+
+import pandas as pd
+from datetime import date
+import json
+
+# Oliver Corbisiero
+# https://github.com/polkadot-js/apps/blob/eb19203f0af55090be3023402f47db8773252cb7/packages/apps-config/src/endpoints/productionRelayPolkadot.ts#L30-L294
+# https://github.com/polkadot-js/apps/blob/eb19203f0af55090be3023402f47db8773252cb7/packages/apps-config/src/endpoints/productionRelayKusama.ts#L31-L400
+
+kusama ={
+    'Bifrost': 'wss://bifrost-rpc.liebi.com/ws',
+    'Aleph Zero': 'wss://ws.azero.dev',
+    'Altair': 'wss://fullnode.altair.centrifuge.io',
+    'Basilisk': 'wss://rpc-01.basilisk.hydradx.io',
+    'BitcountryPioneer': 'wss://pioneer-1-rpc.bit.country',
+    'Automata': 'wss://api.ata.network',
+    # 'Centrifuge Standalone [Archived]': 'wss://fullnode.centrifuge.io',
+    'Calamari': 'wss://ws.calamari.systems/',
+    'ChainX': 'wss://mainnet.chainx.org/ws',
+    'Crab': 'wss://crab-parachain-rpc.darwinia.network/',
+    # 'Competitors Club': 'wss://node0.competitors.club/wss',
+    'Creditcoin': 'wss://mainnet.creditcoin.network',
+    # 'Crown Sterling': 'wss://blockchain.crownsterling.io',
+    # 'Crust Network': 'wss://rpc.crust.network',
+    # 'Darwinia': 'wss://rpc.darwinia.network',
+    'Darwinia Crab': 'wss://crab-rpc.darwinia.network',
+    # 'Dock': 'wss://mainnet-node.dock.io',
+    'Encointer': 'wss://kusama.api.encointer.org',
+    # 'Edgeware': 'wss://mainnet.edgewa.re',
+    'Efinity': 'wss://rpc.efinity.io',
+    # 'Equilibrium': 'wss://node.equilibrium.io',
+    'Genshiro': 'wss://node.genshiro.io',
+    'Heiko': 'wss://parallel-heiko.api.onfinality.io/public-ws',
+    # 'Hanonycash': 'wss://rpc.hanonycash.com',
+    # 'HydraDX': 'wss://rpc-01.snakenet.hydradx.io',
+    'Integritee': 'wss://kusama.api.integritee.network',
+    'Khala': 'wss://khala-api.phala.network/ws',
+    'Kico': 'wss://rpc.kico.dico.io',
+    'Kpron': 'wss://kusama-kpron-rpc.apron.network/',
+    'Karura': 'wss://karura.polkawallet.io',
+    'Khala': 'wss://khala-api.phala.network/ws',
+    'Kintsugi': 'wss://api-kusama.interlay.io/parachain',
+    'Kusama': 'wss://kusama.api.onfinality.io/public-ws',
+    # 'Kulupu': 'wss://rpc.kulupu.corepaper.org/ws',
+    # 'Kusari': 'wss://ws.kusari.network',
+    'Litmus': 'wss://rpc.litmus-parachain.litentry.io',
+    'LoomNetwork': 'wss://kusama.dappchains.com',
+    'Mangata': 'wss://v4-prod-collator-01.mangatafinance.cloud',
+    'Mars': 'wss://wss.mars.aresprotocol.io',
+    # 'MathChain': 'wss://mathchain-asia.maiziqianbao.net/ws',
+    'MiniX': 'wss://minichain-mainnet.coming.chat/ws',
+    'Moonriver': 'wss://wss.api.moonriver.moonbeam.network',
+    'Neatcoin': 'wss://rpc.neatcoin.org/ws',
+    # 'NFTMart': 'wss://mainnet.nftmart.io/rpc/ws',
+    'Nodle': 'wss://main3.nodleprotocol.io',
+    'Heiko': 'wss://heiko-rpc.parallel.fi',
+    # 'Plasm': 'wss://rpc.plasmnet.io/',
+    # 'Polkadex': 'wss://mainnet.polkadex.trade',
+    # 'Polymesh Mainnet': 'wss://mainnet-rpc.polymesh.network',
+    'Picasso': 'wss://picasso-rpc.composable.finance',
+    'Pichiu': 'wss://kusama.kylin-node.co.uk',
+    'Polkasmith': 'wss://wss-polkasmith.polkafoundry.com',
+    'Quartz': 'wss://quartz.unique.network',
+    # 'RioChain': 'wss://node.v1.riochain.io',
+    'Robonomics': 'wss://kusama.rpc.robonomics.network/',
+    'Shadow': 'wss://rpc-shadow.crust.network/',
+    'Sakura': 'wss://api-sakura.clover.finance',
+    'Sora_ksm': 'wss://ws.parachain-collator-1.c1.sora2.soramitsu.co.jp',
+    'Subgame': 'wss://gamma.subgame.org/',
+    'Subsocial': 'wss://para.subsocial.network',
+    'SherpaX': 'wss://mainnet.sherpax.io',
+    'Shiden': 'wss://shiden.api.onfinality.io/public-ws',
+    'Statemine': 'wss://statemine-rpc.polkadot.io',
+    'Stafi': 'wss://mainnet-rpc.stafi.io',
+    # 'SORA': 'wss://ws.mof.sora.org',
+    # 'Spanner': 'wss://wss.spannerprotocol.com',
+    # 'SubGame': 'wss://mainnet.subgame.org/',
+    # 'Subsocial': 'wss://rpc.subsocial.network',
+    # 'Swapdex': 'wss://ws.swapdex.network',
+    # 'UniArts': 'wss://mainnet.uniarts.vip:9443',
+    'Unorthodox': 'wss://rpc.kusama.standard.tech',
+    # 'Westlake': 'wss://westlake.datahighway.com'
+    'Zeitgeist': 'wss://rpc-0.zeitgeist.pm'}
+
+polkadot = {'Acala': 'wss://acala-rpc-0.aca-api.network',
+            # 'Ares Odyssey': 'wss://wss.odyssey.aresprotocol.io',
+            'Astar': 'wss://rpc.astar.network',
+            'Bifrost': 'wss://bifrost-rpc.liebi.com/ws',
+            'Centrifuge': 'wss://fullnode.parachain.centrifuge.io',
+            'Clover': 'wss://rpc-para.clover.finance',
+            # 'Coinversation': 'wss://rpc.coinversation.io/',
+            'Composable Finance': 'wss://rpc.composable.finance',
+            'Crust': 'wss://rpc.crust.network',
+            'Darwinia': 'wss://parachain-rpc.darwinia.network',
+            'Efinity': 'wss://rpc.efinity.io',
+            'Equilibrium': 'wss://node.pol.equilibrium.io/',
+            'Geminis': 'wss://rpc.geminis.network',
+            'HydraDX': 'wss://rpc-01.hydradx.io',
+            'Interlay': 'wss://api.interlay.io/parachain',
+            'Kapex': 'wss://k-ui.kapex.network',
+            # 'Litentry': 'wss://parachain.litentry.io',
+            'Manta': 'wss://kuhlii.manta.systems',
+            'Moonbeam': 'wss://wss.api.moonbeam.network',
+            'Nodle': 'wss://nodle-parachain.api.onfinality.io/public-ws',
+            'Odyssey': 'wss://wss.odyssey.aresprotocol.io',
+            # 'OriginTrail Parachain': 'wss://parachain-rpc.origin-trail.network',
+            'Parallel': 'wss://parallel.api.onfinality.io/public-ws',
+            'Phala': 'wss://api.phala.network/ws',
+            'Polkadex': 'wss://polkadex.api.onfinality.io/public-ws',
+            # 'SubDAO': 'wss://parachain-rpc.subdao.org',
+            # 'SubGame Gamma': 'wss://gamma.subgame.org/',
+            'Unique Network': 'wss://ws.unique.network/',
+            'Statemint': 'wss://statemint-rpc.polkadot.io',
+            'Polkadot': 'wss://rpc.polkadot.io'}
+
+    
+wss_map = kusama | polkadot
+wss_map_df = pd.DataFrame(list(wss_map.items()),columns = ['Name','url'])
+
+def get_token_issuance(url):
+    data = []
+    source = "Tokens"
+    try:
+        substrate = SubstrateInterface(url)
+        hash = substrate.get_chain_finalised_head()
+        timestamp = substrate.query(module='Timestamp',storage_function='Now',block_hash=hash).value
+        block = substrate.get_block_number(hash)
+        result = substrate.query_map(module='Tokens',storage_function='TotalIssuance')
+        for res in result:
+            # print(f"{url} " + json.dumps(res[0].value))
+            try:
+                token = res[0].value
+                amount = res[1].value            
+                outi = {"url": url, "Module": source, "Block": block, "Time": timestamp, 'Token': token, 'Amount': amount}
+                data.append(outi)
+            except Exception as e:
+                token = None
+        
+            return data
+    except Exception as e:
+        print("No Tokens for " + url)
+
+def get_balances_issuance(url):
+    data = []
+    source = "Balances"
+    try:
+        substrate = SubstrateInterface(url)
+        hash = substrate.get_chain_finalised_head()
+        timestamp = substrate.query(module='Timestamp',storage_function='Now',block_hash=hash).value
+        block = substrate.get_block_number(hash)
+        token = substrate.properties['tokenSymbol']
+        amount = substrate.query(module='Balances',storage_function='TotalIssuance').value
+        outi = {"url": url, "Module": source, "Block": block, "Time": timestamp, 'Token': token, 'Amount': amount}
+        data.append(outi)
+        return data
+    except Exception as e:
+        print("No Balances for " + url)
+
+
+# shiden astar moonbeam moonriver
+def get_assets_supply(url):
+    data = []
+    source = "Assets"
+    try:
+        substrate = SubstrateInterface(url)
+        hash = substrate.get_chain_finalised_head()
+        timestamp = substrate.query(module='Timestamp',storage_function='Now',block_hash=hash).value
+        block = substrate.get_block_number(hash)
+        result = substrate.query_map(module='Assets',storage_function='Asset')
+        for res in result:
+            try:
+                token = res[0].value
+                amount = res[1].value['supply']          
+                outi = {"url": url, "Module": source, "Block": block, "Time": timestamp, 'Token': token, 'Amount': amount}
+                data.append(outi)
+            except Exception as e:
+                token = None
+        return data
+    except Exception as e:
+        print("No Assets for " + url)
+    
+def get_homa_stakingLedger(url):
+    data = []
+    source = "Assets"
+    try:
+        # url = 'wss://karura.polkawallet.io'
+        substrate = SubstrateInterface(url)
+        hash = substrate.get_chain_finalised_head()
+        timestamp = substrate.query(module='Timestamp',storage_function='Now',block_hash=hash).value
+        block = substrate.get_block_number(hash)
+        result = substrate.query_map(module='Homa',storage_function='StakingLedgers')
+        if url == wss_map['Karura']:
+            token = 'KSM (on Homa)'
+        elif url == wss_map['Acala']:
+            token = 'DOT (on Homa)'
+        else:
+            token = None
+        amount = 0
+        for res in result:
+            amount += res[1].value['bonded']          
+        
+        if token != None:
+            outi = {"url": url, "Module": source, "Block": block, "Time": timestamp, 'Token': token, 'Amount': amount}
+            data.append(outi)
+            return data
+    except Exception as e:
+        print("No Assets for " + url)
+
+
+today = date.today().strftime("%Y%m%d")
+fname = f"~/R_HOME/karura-reports/tokens_{today}.csv"
+
+mode = "w"
+header = True
+for key in wss_map:
+    url = wss_map[key]
+    # url = 'wss://statemine-rpc.polkadot.io'
+    out1 = get_token_issuance(url)
+    if out1 != None and out1 != []:
+        out = pd.DataFrame(out1).merge(wss_map_df, on='url')
+        out['Time'] = pd.to_datetime(out['Time'],unit='ms').dt.date
+        out.to_csv(fname, mode = mode, index = False, header = header)
+        mode = "a"
+        header = False
+        del out, out1
+    out2 = get_balances_issuance(url)
+    if out2 != None and out2 != []:
+        out = pd.DataFrame(out2).merge(wss_map_df, on='url')
+        out['Time'] = pd.to_datetime(out['Time'],unit='ms').dt.date
+        out.to_csv(fname, mode = mode, index = False, header = header)
+        mode = "a"
+        header = False
+        del out, out2
+    out3 = get_assets_supply(url)
+    if out3 != None and out3 != []:
+        out = pd.DataFrame(out3).merge(wss_map_df, on='url')
+        out['Time'] = pd.to_datetime(out['Time'],unit='ms').dt.date
+        out.to_csv(fname, mode = mode, index = False, header = header)
+        mode = "a"
+        header = False
+        del out, out3
+    if url == wss_map['Karura'] or  url == wss_map['Acala']:
+        out4 = get_homa_stakingLedger(url)
+        out = pd.DataFrame(out4).merge(wss_map_df, on='url')
+        out['Time'] = pd.to_datetime(out['Time'],unit='ms').dt.date
+        out.to_csv(fname, mode = mode, index = False, header = header)
+        mode = "a"
+        header = False
+        del out, out4
+
+```
+
+
+
+```{r tokens, cache = TRUE, include=FALSE}
+
+d <- format(today(), "%Y%m%d")
+rd <- fread("~/R_HOME/karura-reports/tokens_" %+% d %+% ".csv")
+# sort(unique(rd$Token))
+# dim(rd)
+
+# rd[, .N, by = Token][N > 1]
+
+# fix Tokens
+rd[, Symbol := Token]
+rd[Token == "{'ForeignAsset': 0}", Symbol := "RMRK"]
+rd[Token == "{'ForeignAsset': 1}", Symbol := "ARIS"]
+rd[Token == "{'ForeignAsset': 2}", Symbol := "QTZ"]
+rd[Token == "{'ForeignAsset': 3}", Symbol:= "MOVRZ"]
+rd[Token == "{'ForeignAsset': 4}", Symbol := "HKO"]
+rd[Token == "{'ForeignAsset': 5}", Symbol := "CSM"]
+rd[Token == "{'ForeignAsset': 6}", Symbol := "KICO"]
+rd[Token == "{'ForeignAsset': 7}", Symbol := "USDT"]
+rd[Token == "{'ForeignAsset': 8}", Symbol := "TEER"]
+rd[Token == "{'ForeignAsset': 9}", Symbol := "NEER"]
+rd[Token == "{'ForeignAsset': 10}", Symbol := "KMA"]
+rd[Token == "{'ForeignAsset': 11}", Symbol := "BSX"]
+rd[Token == "{'ForeignAsset': 12}", Symbol := "AIR"]
+rd[Token == "{'ForeignAsset': 13}", Symbol := "CRAB"]
+rd[Token == "{'ForeignAsset': 14}", Symbol := "GENS"]
+rd[Token == "{'ForeignAsset': 15}", Symbol := "EQD"]
+rd[Token == "{'StableAssetPoolToken': 0}", Symbol := "taiKSM"]
+rd[Token == "{'LiquidCrowdloan': 13}", Symbol := "LCDOT"]
+rd[Token == "{'Token': 'VSKSM'}", Symbol := "VSKSM"]
+rd[Token == "{'Token': 'PHA'}", Symbol := "PHA"]
+rd[Token == "{'Token': 'KSM'}", Symbol := "KSM"]
+rd[Token == "{'Token': 'KBTC'}", Symbol := "KBTC"]
+rd[Token == "{'Token': 'TAI'}", Symbol := "TAI"]
+rd[Token == "{'Token': 'LKSM'}", Symbol := "LKSM"]
+rd[Token == "{'Token': 'KINT'}", Symbol :="KINT"]
+rd[Token == "{'Token': 'KUSD'}", Symbol := "AUSD"]
+rd[Token == "{'Token': 'BNC'}", Symbol := "BNC"]
+rd[substr(Token, 1, 6) == "['KAR'", Symbol := "KAR"]
+rd[Token == "['CRAB', 'CKTON']", Symbol := "CKTON"]                                   
+rd[Token == "{'Token': 'LDOT'}", Symbol := "LDOT"]                                  
+rd[Token == "{'Token': 'DOT'}", Symbol := "DOT"]            
+rd[Token == "{'Token': 'AUSD'}", Symbol := "AUSD"]                                            
+rd[Token == "KUSD", Symbol := "AUSD"]                                            
+rd[substr(Token, 1, 6) == "['ACA'", Symbol := "ACA"] 
+rd[Token == "{'Token': 'INTR'}", Symbol := "INTR"]
+rd[substr(Symbol, 1, 1) == "{", Symbol := NA] 
+
+# Shiden
+rd[Token == "340282366920938463463374607431768211455" & Name == 'Shiden', Symbol := "KSM"]
+rd[Token == "340282366920938463463374607431768211455" & Name == 'Astar', Symbol := "DOT"]
+# Moonriver
+rd[Token == "108457044225666871745333730479173774551" & Name == 'Moonriver', Symbol := "CSM"]
+rd[Token == "76100021443485661246318545281171740067" & Name == 'Moonriver', Symbol := "HKO"]
+rd[Token == "328179947973504579459046439826496046832" & Name == 'Moonriver', Symbol := "KBTC"]
+rd[Token == "189307976387032586987344677431204943363" & Name == 'Moonriver', Symbol := "PHA"]
+rd[Token == "214920334981412447805621250067209749032" & Name == 'Moonriver', Symbol := "AUSD"]
+rd[Token == "175400718394635817552109270754364440562" & Name == 'Moonriver', Symbol := "KINT"]
+rd[Token == "311091173110107856861649819128533077277" & Name == 'Moonriver', Symbol := "USDT"]
+rd[Token == "182365888117048807484804376330534607370" & Name == 'Moonriver', Symbol := "RMRK"]
+rd[Token == "42259045809535163221576417993425387648" & Name == 'Moonriver', Symbol := "KSM"]
+rd[Token == "10810581592933651521121702237638664357" & Name == 'Moonriver', Symbol := "KAR"]
+rd[Token == "319623561105283008236062145480775032445" & Name == 'Moonriver', Symbol := "BNC"]
+# Moonbeam
+rd[Token == "110021739665376159354538090254163045594" & Name == 'Moonbeam', Symbol := "AUSD"]
+rd[Token == "42259045809535163221576417993425387648" & Name == 'Moonbeam', Symbol := "DOT"]
+rd[Token == "224821240862170613278369189818311486111" & Name == 'Moonbeam', Symbol := "ACA"]
+# Parallel
+rd[Token == "100", Symbol := "KSM"]
+rd[Token == "101", Symbol := "DOT"]
+rd[Token == "103", Symbol := "KUSD"]
+rd[Token == "104", Symbol := "AUSD"]
+rd[Token == "107", Symbol := "KAR"]
+rd[Token == "108", Symbol := "ACA"]
+rd[Token == "109", Symbol := "LKSM"]
+rd[Token == "110", Symbol := "LDOT"]
+rd[Token == "115", Symbol := "PHA"]
+rd[Token == "119", Symbol := "KINT"]
+rd[Token == "121", Symbol := "KBTC"]
+rd[Token == "123", Symbol := "GENS"]
+rd[Token == "1000", Symbol := "sKSM"]
+rd[Token == "1001", Symbol := "sDOT"]
+
+# rd[is.na(Symbol), .N, by = Name]
+# rd[is.na(Symbol)]
+# rd[, .(Token, Symbol)]
+# rd[Name == 'Karura']
+# rd[, .N, by = Symbol][N > 1]
+
+rd <- merge(rd, subscanr::tokens[, .(Token, decimals)], by.x = "Symbol", by.y = "Token")
+rd[, adj := 10 ** as.numeric(decimals)]
+rd[, Amount := as.numeric(Amount) / adj]
+
+```
+
+# DOT {.tabset}
+
+Row
+----
+
+### DOT
+
+```{r DOT}
+
+dot <- rd[Time == max(Time) & Amount > 1 & (Symbol == 'DOT' | Symbol == 'DOT (on Homa)'), .(Name, Symbol, Block, Time, Module, Amount)] %>%
+  setorder(-Amount)
+dot[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+
+knitr::kable(dot, escape = FALSE) %>%
+  kable_styling()
+
+```
+
+Row
+----
+
+### LDOT
+
+```{r LDOT}
+
+ldot <- rd[Amount > 1 & Symbol == 'LDOT', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+  setorder(-Amount)
+ldot[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+
+knitr::kable(ldot, escape = FALSE) %>%
+  kable_styling()
+
+```
+
+Row
+----
+
+### LCDOT
+
+```{r LCDOT}
+
+lcdot <- rd[Amount > 1 & Symbol == 'LCDOT', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+  setorder(-Amount)
+lcdot[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+
+knitr::kable(lcdot, escape = FALSE) %>%
+  kable_styling()
+
+```
+
+# KSM {.tabset}
+
+Row
+----
+
+### KSM
+
+```{r KSM}
+
+ksm <- rd[Amount > 1 & (Symbol == 'KSM' | Symbol == 'KSM (on Homa)'), .(Name, Symbol, Block, Time, Module, Amount)] %>%
+  setorder(-Amount)
+ksm[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+
+knitr::kable(ksm, escape = FALSE) %>%
+  kable_styling()
+
+```
+
+Row
+----
+
+### LKSM
+
+```{r LKSM}
+
+lksm <- rd[Amount > 1 & Symbol == 'LKSM', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+  setorder(-Amount)
+lksm[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+
+knitr::kable(lksm, escape = FALSE) %>%
+  kable_styling()
+
+```
+
+# AUSD {.tabset}
+
+Row
+----
+
+### AUSD
+
+```{r AUSD}
+
+ausd <- rd[Amount > 1 & Symbol == 'AUSD', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+  setorder(-Amount)
+ausd[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+
+knitr::kable(ausd, escape = FALSE) %>%
+  kable_styling()
+
+```
+
+# KBTC {.tabset}
+
+Row
+----
+
+### KBTC
+
+```{r KBTC}
+
+kbtc <- rd[Amount > 1 & Symbol == 'KBTC', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+  setorder(-Amount)
+kbtc[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+
+knitr::kable(kbtc, escape = FALSE) %>%
+  kable_styling()
+
+```
+
+# KINT {.tabset}
+
+Row
+----
+
+### KINT
+
+```{r KINT}
+
+kint <- rd[Amount > 1 & Symbol == 'KINT', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+  setorder(-Amount)
+kint[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+
+knitr::kable(kint, escape = FALSE) %>%
+  kable_styling()
+
+```
+
+# PHA {.tabset}
+
+Row
+----
+
+### PHA
+
+```{r PHA}
+
+pha <- rd[Amount > 1 & Symbol == 'PHA', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+  setorder(-Amount)
+pha[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+
+knitr::kable(pha, escape = FALSE) %>%
+  kable_styling()
+
+```
+
