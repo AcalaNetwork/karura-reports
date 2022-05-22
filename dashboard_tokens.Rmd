@@ -42,7 +42,7 @@ library(reticulate)
 
 ```
 
-```{python}
+```{python, include=FALSE}
 from substrateinterface import SubstrateInterface
 
 import pandas as pd
