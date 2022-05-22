@@ -42,7 +42,7 @@ library(reticulate)
 
 ```
 
-```{python, include=FALSE}
+```{python}
 from substrateinterface import SubstrateInterface
 
 import pandas as pd
@@ -80,12 +80,11 @@ kusama ={
     # 'Hanonycash': 'wss://rpc.hanonycash.com',
     # 'HydraDX': 'wss://rpc-01.snakenet.hydradx.io',
     'Integritee': 'wss://kusama.api.integritee.network',
-    'Khala': 'wss://khala-api.phala.network/ws',
-    'Kico': 'wss://rpc.kico.dico.io',
-    'Kpron': 'wss://kusama-kpron-rpc.apron.network/',
     'Karura': 'wss://karura.polkawallet.io',
     'Khala': 'wss://khala-api.phala.network/ws',
+    'Kico': 'wss://rpc.kico.dico.io',
     'Kintsugi': 'wss://api-kusama.interlay.io/parachain',
+    'Kpron': 'wss://kusama-kpron-rpc.apron.network/',
     'Kusama': 'wss://kusama.api.onfinality.io/public-ws',
     # 'Kulupu': 'wss://rpc.kulupu.corepaper.org/ws',
     # 'Kusari': 'wss://ws.kusari.network',
@@ -182,7 +181,7 @@ def get_token_issuance(url):
             except Exception as e:
                 token = None
         
-            return data
+        return data
     except Exception as e:
         print("No Tokens for " + url)
 
@@ -302,6 +301,11 @@ for key in wss_map:
 
 d <- format(today(), "%Y%m%d")
 rd <- fread("~/R_HOME/karura-reports/tokens_" %+% d %+% ".csv")
+# rd <- fread("~/R_HOME/karura-reports/tokens_20220521.csv")
+# rd <- fread("~/Python_HOME/tokens.csv")
+
+rd[Name == 'Karura']
+
 # sort(unique(rd$Token))
 # dim(rd)
 
