@@ -204,7 +204,7 @@ myindex <- as.numeric(index[, 2])
 swaps[, index := myindex]
 setorder(swaps, block.id, index)
 
-starti <- 1829970 #  min(swaps$block.id) #
+starti <- min(swaps$block.id) #
 endi <- max(swaps$block.id)
 
 
@@ -248,12 +248,17 @@ output[, target := substr(target, 1, 8) %+% "..."]
 
 ### `r network` sandwich attacks in the past 30 days
 
-```{r plot, result='asis', out.height = 12}
+```{r plot}
 
 dygraph(output[, .N, by = as.Date(time)], main = network %+% " Sandwich Attacks") %>% 
         dyStackedBarChart()
 
 ```
+
+Row
+---
+
+### Raw Data
 
 ```{r table}
 
@@ -261,6 +266,11 @@ knitr::kable(output, escape = FALSE) %>%
   kable_styling()
 
 ```
+
+Row
+---
+
+### Sources:
 
 Last updated: `r Sys.time()`
 

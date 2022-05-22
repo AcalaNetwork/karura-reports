@@ -271,11 +271,7 @@ Row
 
 ```{r}
 
-# dailyLoanCollateral <- getLoansDailyCollateralQuery(loan_endpoint, window)
-# dailyLoanPositions <- getLoansDailyPositionsQuery(loan_endpoint, window)
-# collaterParams <- getLoansCollateralParamsQuery(loan_endpoint)
-
-  pos <- merge(dailyLoanPositions, collaterParams, by="collateral.id", all=FALSE) # ignore taiKSM
+  pos <- merge(dailyLoanPositions, collaterParams, by="collateral.id", all=FALSE, allow.cartesian=TRUE) # ignore taiKSM
   pos[, Ratio := depositVolumeUSD/debitVolumeUSD]
   pos[, Status := 'Safe']
   pos[Ratio <= requiredCollateralRatio, Status := 'Warning']

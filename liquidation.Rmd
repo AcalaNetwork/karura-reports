@@ -7,7 +7,7 @@ output:
     social: menu
     source_code: embed
 params:
-  network: Acala
+  network: Karura
 ---
 
 ```{css custom1, echo=FALSE}
@@ -24,6 +24,7 @@ knitr::opts_chunk$set(
   comment = "#>"
 )
 
+library(dygraphs)
 library(kableExtra)
 library(formattable)
 library(lubridate)
@@ -126,7 +127,6 @@ getTarget <- function(block, collateral, id) {
   tradeprice[1]
   
 }
-
 getTarget_n <- function(block, collateral, id) {
   # i=485; block = cdp[i, block_num]; id = cdp[i, CurrencyId]; collateral = cdp[i, BadDebtPenalty]
   # cdp[i]
@@ -236,6 +236,7 @@ dealt[, WinnerId := as.character(WinnerId)]
 ```
 
 ```{r}
+
 if (FALSE) {
   # i=3; block = cdp[i, block_num]; id = cdp[i, CurrencyId]; collateral = cdp[i, BadDebtPenalty]
   
@@ -273,6 +274,7 @@ if (FALSE) {
 
 ```
 
+# Bots {.tabset}
 
 Rows
 ---
@@ -293,6 +295,22 @@ kable(dealt[, .N, by = WinnerId], align='rr') %>%
 Rows
 ---
 
+### `r network` CollateralAuctionDealt raw data
+
+```{r}
+
+mutate_if(dealt, is.numeric, function(x) {cell_spec(x=round(x,2))}) %>%
+kable(escape = FALSE, align = "r") %>%
+kable_styling(c("striped", "condensed"), full_width = FALSE)
+
+```
+
+
+# DEX {.tabset}
+
+Rows
+---
+
 ### `r network` DEX Take Action (auctionmanager : DEXTakeCollateralAuction)
 
 * The DEX handles the liquidations in cases where there are no bot auctions.  There were __`r nrow(dextake)`__ auctions that were completed by the DEX (instead of bots) between __`r dextake[, min(time)]`__ and __`r dextake[, max(time)]`__.  There were __`r dextake[is.na(TradePrice), .N]`__ missing trade prices.  
@@ -305,35 +323,26 @@ Rows
 
 * There were __`r dextake[Slippage < 0, .N]`__ observations with negative slippage that were excluded from the above calculations.
 
-
 Rows
 ---
 
-### `r network` CDP Liquidate Unsafe (cdpengine : LiquidateUnsafeCDP)
+```{r plot1}
 
-* The CDP handles the liquidations via exchanges.  There were __`r nrow(cdp)`__ exchanges that were completed by the CDP engine between __`r cdp[, min(time)]`__ and __`r cdp[, max(time)]`__, but the statistics below are based on __`r cdp[!is.na(TradePrice), .N]`__ observations with an identifiable swap trade price.  
-
-* The equal-weighted average slippage was __`r round(mean(cdp[Slippage > 0, Slippage]),2)`%__.
-
-* The volume-weighted average slippage was __`r round(weighted.mean(cdp[Slippage > 0, Slippage], cdp[Slippage > 0, BadDebtValue]),2)`%__.
-
-* The max slippage was __`r round(max(cdp[Slippage > 0, Slippage]),2)`%__ which occured on __`r cdp[Slippage == max(cdp[Slippage > 0, Slippage]), time]`__.
-
-* There were __`r cdp[Slippage < 0, .N]`__ observations with negative slippage that were excluded from the above calculations.
-
-Rows
----
-
-### `r network` CollateralAuctionDealt raw data
-
-```{r}
-
-mutate_if(dealt, is.numeric, function(x) {cell_spec(x=round(x,2))}) %>%
-kable(escape = FALSE, align = "r") %>%
-kable_styling(c("striped", "condensed"), full_width = FALSE)
+dygraph(dextake[, .N, by = as.Date(time)], main = network %+% " DEX Liquidations") %>% 
+        dyStackedBarChart()
 
 ```
 
+
+Rows
+---
+
+```{r plot2}
+
+dygraph(dextake[, mean(Slippage), by = as.Date(time)], main = network %+% " DEX Average Slippage") %>% 
+        dyStackedBarChart()
+
+```
 
 Rows
 ---
@@ -355,6 +364,46 @@ mutate_if(dextake, is.numeric, function(x) {cell_spec(x=round(x,2))}) %>%
   kable_styling(c("striped", "condensed"), full_width = FALSE)
 
 ```
+
+
+# CDP {.tabset}
+
+Rows
+---
+
+### `r network` CDP Liquidate Unsafe (cdpengine : LiquidateUnsafeCDP)
+
+* The CDP handles the liquidations via exchanges.  There were __`r nrow(cdp)`__ exchanges that were completed by the CDP engine between __`r cdp[, min(time)]`__ and __`r cdp[, max(time)]`__, but the statistics below are based on __`r cdp[!is.na(TradePrice), .N]`__ observations with an identifiable swap trade price.  
+
+* The equal-weighted average slippage was __`r round(mean(cdp[Slippage > 0, Slippage]),2)`%__.
+
+* The volume-weighted average slippage was __`r round(weighted.mean(cdp[Slippage > 0, Slippage], cdp[Slippage > 0, BadDebtValue]),2)`%__.
+
+* The max slippage was __`r round(max(cdp[Slippage > 0, Slippage]),2)`%__ which occured on __`r cdp[Slippage == max(cdp[Slippage > 0, Slippage]), time]`__.
+
+* There were __`r cdp[Slippage < 0, .N]`__ observations with negative slippage that were excluded from the above calculations.
+
+Rows
+---
+
+```{r plot3}
+
+dygraph(cdp[, .N, by = as.Date(time)], main = network %+% " CDP Liquidations") %>% 
+        dyStackedBarChart()
+
+```
+
+
+Rows
+---
+
+```{r plot4}
+
+dygraph(cdp[, mean(Slippage), by = as.Date(time)], main = network %+% " CDP Average Slippage") %>% 
+        dyStackedBarChart()
+
+```
+
 
 
 Rows

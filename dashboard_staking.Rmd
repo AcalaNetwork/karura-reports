@@ -45,9 +45,8 @@ endpage <- 2e9
 KSM_tokens <- getAccountBalance_acala_token("karura", window = 1, filter = 'filter: {tokenId: {in: ["KSM","LKSM"]}, total: {greaterThan: "0"}} ', endpage = endpage)
 KSM_token_wide <- dcast(KSM_tokens, accountId ~ tokenId, value.var = 'total')
 
-# DOT_tokens <- getAccountBalance_acala_token("acala", window = 1, filter = 'filter: {total: {greaterThan: "0"}} ', endpage = endpage)
-DOT_tokens <- getAccountBalance_acala_token("acala", window = 1, filter = '', endpage = endpage)
-DOT_token_wide <- dcast(DOT_tokens, accountId ~ tokenId, value.var = 'total')
+# DOT_tokens <- getAccountBalance_acala_token("acala", window = 1, filter = 'filter: {tokenId: {in: ["DOT","LDOT"]}, total: {greaterThan: "0"}} ', endpage = endpage)
+# DOT_token_wide <- dcast(DOT_tokens, accountId ~ tokenId, value.var = 'total')
 
 ```
 
@@ -75,8 +74,9 @@ loans_karura_wide <- dcast(loans_karura, ownerId ~ collateralId, value.var = c('
 karura_addr <- merge(KSM_token_wide, aUSD_karura_wide, by = 'accountId', all = TRUE)
 karura_addr <- merge(karura_addr, loans_karura_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
 
-acala_addr <- merge(DOT_token_wide, aUSD_acala_wide, by = 'accountId', all.x = TRUE)
-acala_addr <- merge(acala_addr, loans_acala_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
+acalaEval <- FALSE
+# acala_addr <- merge(DOT_token_wide, aUSD_acala_wide, by = 'accountId', all.x = TRUE)
+# acala_addr <- merge(acala_addr, loans_acala_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
 
 ```
 
@@ -156,14 +156,14 @@ knitr::kable(ausd_tbl, escape = FALSE, align = c("l",rep("r",3))) %>%
 Row
 ----
 
-### DOT analysis based on `r acala_addr[, .N]` users
+### DOT analysis 
 
 1) None = Default
 2) DOT on Acala but no LDOT = Acala DOT Balance > 0
 3) LDOT User = LDOT Balance > 0
 4) LP User = depositAmount_LDOT > 0
 
-```{r DOT}
+```{r DOT, eval = acalaEval }
 
 # DOT
 # DOT on Acala but not LDOT
@@ -190,14 +190,14 @@ knitr::kable(dot_tbl, escape = FALSE, align = c("l",rep("r",3))) %>%
 Row
 ----
 
-### AUSD (on Acala) analysis based on `r acala_addr[, .N]` users
+### AUSD (on Acala) analysis 
 
 1) None = Default
 2) AUSD Holder = AUSD Balance > 0
 3) AUSD Vault Open = depositAmount_KSM > 0 OR depositAmount_LKSM > 0
 4) Vault open but no AUSD minted = depositAmount_KSM > 0 OR depositAmount_LKSM > 0 AND (is.na(debitAmount_KSM) AND is.na(debitAmount_LKSM)
 
-```{r AUSD}
+```{r AUSD, eval = acalaEval}
 
 # aUSD
 # No aUSD
@@ -226,14 +226,14 @@ knitr::kable(ausd_tbl, escape = FALSE, align = c("l",rep("r",3))) %>%
 Row
 ----
 
-### ACA analysis based on `r acala_addr[, .N]` users
+### ACA analysis 
 
 1) None = Default
 2) ACA Staker = depositAmount_ACA > 0
 3) No ACA Staking = ACA Balance > 0 
 4) No ACA = is.na(ACA Balance)
 
-```{r ACA}
+```{r ACA, eval = acalaEval}
 
 # names(acala_addr)
 # summary(acala_addr$debitAmount_ACA)
