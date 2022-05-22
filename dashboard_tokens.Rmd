@@ -38,11 +38,11 @@ x <- GraphqlClient$new()
 `%+%` <- function(a, b) paste0(a, b)
 
 library(reticulate)
-use_python("/opt/homebrew/bin/python3.9")
+# use_python("/opt/homebrew/bin/python3.9")
 
 ```
 
-```{python}
+```{python, include=FALSE}
 from substrateinterface import SubstrateInterface
 
 import pandas as pd
