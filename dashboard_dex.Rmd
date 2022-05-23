@@ -224,14 +224,14 @@ Sources:
 
 Swaps:
 
-* [Acala-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/acala-swap-day-data)
+* [Acala Dex Data](https://explorer.subquery.network/subquery/AcalaNetwork/acala-dex)
 
-* [Karura-Swap-Day-Data](https://api.subquery.network/sq/rogerjbos/karura-swap-day-data)
+* [Karura Dex Data](https://explorer.subquery.network/subquery/AcalaNetwork/acala-dex)
 
 Loans:
 
-* [Acala-Loan-Data](https://api.subquery.network/sq/rogerjbos/acala-loan-subql)
+* [Acala Loan Data](https://explorer.subquery.network/subquery/AcalaNetwork/acala-loans)
 
-* [Karura-Loan-Data](https://api.subquery.network/sq/rogerjbos/karura-loan-subql)
+* [Karura Loan Data](https://explorer.subquery.network/subquery/AcalaNetwork/karura-loan)
 
 
