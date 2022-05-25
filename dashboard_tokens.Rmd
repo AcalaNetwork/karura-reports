@@ -301,10 +301,20 @@ for key in wss_map:
 
 d <- format(today(), "%Y%m%d")
 rd <- fread("~/R_HOME/karura-reports/tokens_" %+% d %+% ".csv")
-# rd <- fread("~/R_HOME/karura-reports/tokens_20220521.csv")
-# rd <- fread("~/Python_HOME/tokens.csv")
+i <- 7
+while (i > 1) {
+  d2 <- format(today() - i, "%Y%m%d")
+  fname <- "~/R_HOME/karura-reports/tokens_" %+% d2 %+% ".csv"
+  if (file.exists(fname)) break
+  i <- i - 1
+}
+rd2 <- fread("~/R_HOME/karura-reports/tokens_" %+% d2 %+% ".csv")
+rd2 <- rd2[, .(Token, Name, Amount)] %>% setnames("Amount", "priorAmount")
+rd <- merge(rd, rd2, by = c("Token","Name"), all = TRUE)
+# rd[, 'Amount Change ' %+% i %+% 'D' := Amou]
+cols <- c('Name', 'Symbol', 'Block', 'Time', 'Module', 'Amount', 'Amount Change ' %+% i %+% 'D')
 
-rd[Name == 'Karura']
+# rd[Name == 'Karura']
 
 # sort(unique(rd$Token))
 # dim(rd)
@@ -394,6 +404,9 @@ rd[Token == "1001", Symbol := "sDOT"]
 rd <- merge(rd, subscanr::tokens[, .(Token, decimals)], by.x = "Symbol", by.y = "Token")
 rd[, adj := 10 ** as.numeric(decimals)]
 rd[, Amount := as.numeric(Amount) / adj]
+rd[, priorAmount := as.numeric(priorAmount) / adj]
+rd[, 'Amount Change ' %+% i %+% 'D' := Amount - priorAmount]
+
 
 ```
 
@@ -406,11 +419,11 @@ Row
 
 ```{r DOT}
 
-dot <- rd[Time == max(Time) & Amount > 1 & (Symbol == 'DOT' | Symbol == 'DOT (on Homa)'), .(Name, Symbol, Block, Time, Module, Amount)] %>%
+dot <- rd[Time == max(Time) & Amount > 1 & (Symbol == 'DOT' | Symbol == 'DOT (on Homa)'), ..cols] %>%
   setorder(-Amount)
-dot[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+dot[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(dot, escape = FALSE) %>%
+knitr::kable(dot, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -422,11 +435,11 @@ Row
 
 ```{r LDOT}
 
-ldot <- rd[Amount > 1 & Symbol == 'LDOT', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+ldot <- rd[Amount > 1 & Symbol == 'LDOT', ..cols] %>%
   setorder(-Amount)
-ldot[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+ldot[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(ldot, escape = FALSE) %>%
+knitr::kable(ldot, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -438,11 +451,11 @@ Row
 
 ```{r LCDOT}
 
-lcdot <- rd[Amount > 1 & Symbol == 'LCDOT', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+lcdot <- rd[Amount > 1 & Symbol == 'LCDOT', ..cols] %>%
   setorder(-Amount)
-lcdot[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+lcdot[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(lcdot, escape = FALSE) %>%
+knitr::kable(lcdot, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -456,11 +469,11 @@ Row
 
 ```{r KSM}
 
-ksm <- rd[Amount > 1 & (Symbol == 'KSM' | Symbol == 'KSM (on Homa)'), .(Name, Symbol, Block, Time, Module, Amount)] %>%
+ksm <- rd[Amount > 1 & (Symbol == 'KSM' | Symbol == 'KSM (on Homa)'), ..cols] %>%
   setorder(-Amount)
-ksm[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+ksm[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(ksm, escape = FALSE) %>%
+knitr::kable(ksm, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -472,11 +485,11 @@ Row
 
 ```{r LKSM}
 
-lksm <- rd[Amount > 1 & Symbol == 'LKSM', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+lksm <- rd[Amount > 1 & Symbol == 'LKSM', ..cols] %>%
   setorder(-Amount)
-lksm[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+lksm[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(lksm, escape = FALSE) %>%
+knitr::kable(lksm, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -490,11 +503,11 @@ Row
 
 ```{r AUSD}
 
-ausd <- rd[Amount > 1 & Symbol == 'AUSD', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+ausd <- rd[Amount > 1 & Symbol == 'AUSD', ..cols] %>%
   setorder(-Amount)
-ausd[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+ausd[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(ausd, escape = FALSE) %>%
+knitr::kable(ausd, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -508,11 +521,11 @@ Row
 
 ```{r KBTC}
 
-kbtc <- rd[Amount > 1 & Symbol == 'KBTC', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+kbtc <- rd[Amount > 1 & Symbol == 'KBTC', ..cols] %>%
   setorder(-Amount)
-kbtc[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+kbtc[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(kbtc, escape = FALSE) %>%
+knitr::kable(kbtc, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -528,9 +541,9 @@ Row
 
 kint <- rd[Amount > 1 & Symbol == 'KINT', .(Name, Symbol, Block, Time, Module, Amount)] %>%
   setorder(-Amount)
-kint[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+kint[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(kint, escape = FALSE) %>%
+knitr::kable(kint, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -546,9 +559,9 @@ Row
 
 pha <- rd[Amount > 1 & Symbol == 'PHA', .(Name, Symbol, Block, Time, Module, Amount)] %>%
   setorder(-Amount)
-pha[, Percent := round((Amount / sum(Amount)) * 100, 2)]
+pha[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(pha, escape = FALSE) %>%
+knitr::kable(pha, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
