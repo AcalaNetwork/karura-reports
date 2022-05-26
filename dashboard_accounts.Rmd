@@ -38,6 +38,7 @@ x <- GraphqlClient$new()
 `%+%` <- function(a, b) paste0(a, b)
 
 library(reticulate)
+
 ```
 
 ```{python, include=FALSE}
@@ -74,22 +75,22 @@ def get_accounts(network):
     out = pd.DataFrame(data)           
     out.to_csv(fname, mode = "w", index = False, header = True)
 
-# get_accounts("Acala")
-# get_accounts("Karura")
+get_accounts("Acala")
+get_accounts("Karura")
 
 ```
 
 ```{r tokens, cache = TRUE, include=FALSE}
 
-# accounts_sq <- getAccounts_acala('Acala', window = 1, filter = '', endpage = 2000)
-# fwrite(accounts_sq, file = "accounts_sq.csv")
-# accounts_ss <- get_subscan_accounts('Acala', nobs = 2000000, start_page = 1)
-# fwrite(accounts_ss, file = "accounts_ss.csv")
+accounts_sq <- getAccounts_acala('Acala', window = 1, filter = '', endpage = 2000)
+fwrite(accounts_sq, file = "accounts_sq.csv")
+accounts_ss <- get_subscan_accounts('Acala', nobs = 2000000, start_page = 1)
+fwrite(accounts_ss, file = "accounts_ss.csv")
 
-# karura_accounts_sq <- getAccounts_acala('Karura', window = 1, filter = '', endpage = 2000)
-# fwrite(karura_accounts_sq, file = "karura_accounts_sq.csv")
-# karura_accounts_ss <- get_subscan_accounts('Karura', nobs = 2000000, start_page = 1)
-# fwrite(karura_accounts_ss, file = "karura_accounts_ss.csv")
+karura_accounts_sq <- getAccounts_acala('Karura', window = 1, filter = '', endpage = 2000)
+fwrite(karura_accounts_sq, file = "karura_accounts_sq.csv")
+karura_accounts_ss <- get_subscan_accounts('Karura', nobs = 2000000, start_page = 1)
+fwrite(karura_accounts_ss, file = "karura_accounts_ss.csv")
 
 # Acala data
 accounts_api <- fread(file = "~/Python_HOME/Acala_accounts.csv")
@@ -139,24 +140,24 @@ Row
 
 ### Acala Accounts Comparison
 
-* Acala-tokens Subquery accounts: `r both[subquery == 1, .N]`
+* Acala-tokens Subquery accounts: `r format(both[subquery == 1, .N], big.mark = ",")`
 
-* Subscan accounts: `r both[subscan == 1, .N]`
+* Subscan accounts: `r format(both[subscan == 1, .N], big.mark = ",")`
 
-* API accounts (ignoring free balance): `r both[api == 1, .N]`
+* API accounts (ignoring free balance): `r format(both[api == 1, .N], big.mark = ",")`
 
-* API accounts (free balance > 0): `r both[free > 0 & api == 1, .N]`
+* API accounts (free balance > 0): `r format(both[free > 0 & api == 1, .N], big.mark = ",")`
 
-* Overlap between Subquery and Subscan: `r both[subquery == 1 & subscan == 1, .N]`
+* Overlap between Subquery and Subscan: `r format(both[subquery == 1 & subscan == 1, .N], big.mark = ",")`
 
-* Overlap between Subscan and API: `r both[api == 1 & subscan == 1, .N]`
+* Overlap between Subscan and API: `r format(both[api == 1 & subscan == 1, .N], big.mark = ",")`
 
 From the above data it appears that the number of accounts being reported by Subscan is much closer to the number from the API.  For the purposes of the stats page, getting the number of accounts from the API would take too long, so the quickest way is from Subscan.  The acala-subql project is vastly under-reporting the number of accounts.  The other issue with the acala-subql project is that all the related fields are NA for all observations, such as *txCount* and *createAtBlockId*.
 
 Row
 ----
 
-### `r both[free > 0 & api == 1 & is.na(subscan), .N]` Accounts in API that are missing from Subscan
+### `r format(both[free > 0 & api == 1 & is.na(subscan), .N], big.mark = ",")` Accounts in API that are missing from Subscan
 
 Showing first 50 observations...
 ```{r acala1}
@@ -170,7 +171,7 @@ knitr::kable(head(both[free > 0 & api == 1 & is.na(subscan)], 50), escape = FALS
 Row
 ----
 
-### `r both[is.na(api) & subscan == 1, .N]` Accounts in Subscan that are missing from the API
+### `r format(both[is.na(api) & subscan == 1, .N], big.mark = ",")` Accounts in Subscan that are missing from the API
 
 Showing first 50 observations...
 ```{r acala2}
@@ -187,24 +188,24 @@ Row
 
 ### Karura Accounts Comparison
 
-* Karura-tokens Subquery accounts: `r karura_both[subquery == 1, .N]`
+* Karura-tokens Subquery accounts: `r format(karura_both[subquery == 1, .N], big.mark = ",")`
 
-* Subscan accounts: `r karura_both[subscan == 1, .N]`
+* Subscan accounts: `r format(karura_both[subscan == 1, .N], big.mark = ",")`
 
-* API accounts (ignoring free balance): `r karura_both[api == 1, .N]`
+* API accounts (ignoring free balance): `r format(karura_both[api == 1, .N], big.mark = ",")`
 
-* API accounts (free balance > 0): `r karura_both[free > 0 & api == 1, .N]`
+* API accounts (free balance > 0): `r format(karura_both[free > 0 & api == 1, .N], big.mark = ",")`
 
-* Overlap between Subquery and API: `r karura_both[subquery == 1 & api == 1, .N]`
+* Overlap between Subquery and API: `r format(karura_both[subquery == 1 & api == 1, .N], big.mark = ",")`
 
-* Overlap between Subscan and API: `r karura_both[api == 1 & subscan == 1, .N]`
+* Overlap between Subscan and API: `r format(karura_both[api == 1 & subscan == 1, .N], big.mark = ",")`
 
 Similar to Acala Network, the acala-subql project for Karura Network seems to have a poor overlap with the accounts reported by the API, whereas Subscan has 100% overlap (all the accounts reported by the API are also reported by Subscan -- Subscan is showing some extra accounts as well!).  
 
 Row
 ----
 
-### `r karura_both[free > 0 & api == 1 & is.na(subscan), .N]` Accounts in API that are missing from Subscan
+### `r format(karura_both[free > 0 & api == 1 & is.na(subscan), .N], big.mark = ",")` Accounts in API that are missing from Subscan
 
 Showing first 50 observations...
 ```{r karura1}
@@ -218,7 +219,7 @@ knitr::kable(head(karura_both[free > 0 & api == 1 & is.na(subscan)], 50), escape
 Row
 ----
 
-### `r karura_both[is.na(api) & subscan == 1, .N]` Accounts in Subscan that are missing from the API
+### `r format(karura_both[is.na(api) & subscan == 1, .N], big.mark = ",")` Accounts in Subscan that are missing from the API
 
 Showing first 50 observations...
 ```{r karura2}
