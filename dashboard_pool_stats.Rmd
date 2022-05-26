@@ -1,0 +1,97 @@
+---
+title: "Acala / Karura Pool Stats"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+---
+
+```{css custom1, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
+
+```{r global, include=FALSE}
+
+library(knitr)
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+library(kableExtra)
+library(formattable)
+library(lubridate)
+library(flexdashboard)
+library(DT)
+library(subscanr)
+library(ghql)
+x <- GraphqlClient$new()
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+# library(reticulate)
+
+```
+
+```{r tokens, cache = TRUE, include=FALSE}
+
+pools_k <- getPoolStats_acala('karura')
+# FOR DEX must use dailyTradeVolumeUSD instead of tradeVolumeUSD
+pools_k_dex <- getPoolStats_acala_dex('karura')
+setnames(pools_k_dex, "totalTVL", "tvlUSD_DEX")
+
+pools_k[, .(id, token0.name, token1.name)]
+
+both_k <- merge(pools_k[, .(id, tvlUSD, volumeUSD_24H, volumeUSD_7D)],
+                pools_k_dex[, .(id, tvlUSD_DEX, volumeUSD_24H, volumeUSD_7D)],
+                by = "id",
+                all = TRUE,
+                suffixes = c("", "_DEX"))
+both_k[, TVL_Difference := abs(tvlUSD - tvlUSD_DEX)] %>% 
+  setorder(-TVL_Difference)
+
+pools_a <- getPoolStats_acala('acala')
+pools_a_dex <- getPoolStats_acala_dex('acala')
+setnames(pools_a_dex, "totalTVL", "tvlUSD_DEX")
+
+both_a <- merge(pools_a[, .(id, tvlUSD, volumeUSD_24H, volumeUSD_7D)],
+                pools_a_dex[, .(id, tvlUSD_DEX, volumeUSD_24H, volumeUSD_7D)],
+                by = "id",
+                all = TRUE,
+                suffixes = c("", "_DEX"))
+both_a[, TVL_Difference := abs(tvlUSD - tvlUSD_DEX)] %>% 
+  setorder(-TVL_Difference)
+
+```
+
+# Acala {.tabset}
+
+Row
+----
+
+```{r acala1}
+
+knitr::kable(both_a, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+```
+
+
+# Karura {.tabset}
+
+Row
+----
+
+```{r karura1}
+
+knitr::kable(both_k, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+```
+
