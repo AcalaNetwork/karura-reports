@@ -315,7 +315,7 @@ rd <- merge(rd, rd2, by = c("Token","Name"), all = TRUE)
 # rd[, 'Amount Change ' %+% i %+% 'D' := Amou]
 cols <- c('Name', 'Symbol', 'Block', 'Time', 'Module', 'Amount', 'Amount Change ' %+% i %+% 'D')
 
-# rd[Name == 'Karura']
+# rd[Name == 'acala']
 
 # sort(unique(rd$Token))
 # dim(rd)
@@ -406,9 +406,12 @@ rd <- merge(rd, subscanr::tokens[, .(Token, decimals)], by.x = "Symbol", by.y = 
 rd[, adj := 10 ** as.numeric(decimals)]
 rd[, Amount := as.numeric(Amount) / adj]
 rd[, priorAmount := as.numeric(priorAmount) / adj]
-rd[, change := Amount - priorAmount]
+rd[, change := round(Amount - priorAmount, 2)]
 
-rd$change = ifelse(rd$change < 0, cell_spec(rd$change, color = "red", bold = TRUE), cell_spec(rd$change, color = "green", italic = TRUE))
+rd$change = ifelse(rd$change < 0, 
+                   cell_spec(rd$change, color = "red"), 
+                   cell_spec(rd$change, color = "green"))
+
 setnames(rd, 'change', 'Amount Change ' %+% i %+% 'D')
 
 ```
@@ -442,7 +445,7 @@ ldot <- rd[Amount > 1 & Symbol == 'LDOT', ..cols] %>%
   setorder(-Amount)
 ldot[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(ldot, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(ldot, escape = FALSE, decimals = 2, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -458,7 +461,7 @@ lcdot <- rd[Amount > 1 & Symbol == 'LCDOT', ..cols] %>%
   setorder(-Amount)
 lcdot[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(lcdot, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(lcdot, escape = FALSE, decimals = 2, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -476,7 +479,7 @@ ksm <- rd[Amount > 1 & (Symbol == 'KSM' | Symbol == 'KSM (on Homa)'), ..cols] %>
   setorder(-Amount)
 ksm[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(ksm, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(ksm, escape = FALSE, decimals = 2, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -492,7 +495,7 @@ lksm <- rd[Amount > 1 & Symbol == 'LKSM', ..cols] %>%
   setorder(-Amount)
 lksm[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(lksm, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(lksm, escape = FALSE, decimals = 2, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -510,7 +513,7 @@ ausd <- rd[Amount > 1 & Symbol == 'AUSD', ..cols] %>%
   setorder(-Amount)
 ausd[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(ausd, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(ausd, escape = FALSE, decimals = 2, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -528,7 +531,7 @@ kbtc <- rd[Amount > 1 & Symbol == 'KBTC', ..cols] %>%
   setorder(-Amount)
 kbtc[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(kbtc, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(kbtc, escape = FALSE, decimals = 2, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -542,11 +545,11 @@ Row
 
 ```{r KINT}
 
-kint <- rd[Amount > 1 & Symbol == 'KINT', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+kint <- rd[Amount > 1 & Symbol == 'KINT', ..cols] %>%
   setorder(-Amount)
 kint[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(kint, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(kint, escape = FALSE, decimals = 2, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
@@ -560,11 +563,11 @@ Row
 
 ```{r PHA}
 
-pha <- rd[Amount > 1 & Symbol == 'PHA', .(Name, Symbol, Block, Time, Module, Amount)] %>%
+pha <- rd[Amount > 1 & Symbol == 'PHA', ..cols] %>%
   setorder(-Amount)
 pha[, `Current Percent` := round((Amount / sum(Amount)) * 100, 2)]
 
-knitr::kable(pha, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(pha, escape = FALSE, decimals = 2, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```

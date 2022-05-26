@@ -41,10 +41,39 @@ x <- GraphqlClient$new()
 
 ```{r tokens, cache = TRUE, include=FALSE}
 
+pools_a <- getPoolStats_acala('acala')
+pools_a[, volumeUSD_24H := as.numeric(volumeUSD_24H)]
+pools_a[, volumeUSD_7D := as.numeric(volumeUSD_7D)]
+
+pools_a_dex <- getPoolStats_acala_dex('acala') %>%
+  setnames("totalTVL", "tvlUSD_DEX")
+pools_a_dex[, volumeUSD_24H := as.numeric(volumeUSD_24H)]
+pools_a_dex[, volumeUSD_7D := as.numeric(volumeUSD_7D)]
+
+both_a <- merge(pools_a[, .(id, tvlUSD, volumeUSD_24H, volumeUSD_7D)],
+                pools_a_dex[, .(id, tvlUSD_DEX, volumeUSD_24H, volumeUSD_7D)],
+                by = "id",
+                all = TRUE,
+                suffixes = c("", "_DEX"))
+both_a[, Absolute := abs(tvlUSD - tvlUSD_DEX)] %>% 
+  setorder(-Absolute)
+both_a[, Percentage := round((Absolute / min(tvlUSD, tvlUSD_DEX)) * 100, 1)]
+
+both_a[, Percentage := ifelse(Percentage > 5, 
+                   cell_spec(Percentage, color = "red"), 
+                   cell_spec(Percentage, color = "green"))]
+
+
+
 pools_k <- getPoolStats_acala('karura')
+pools_k[, volumeUSD_24H := as.numeric(volumeUSD_24H)]
+pools_k[, volumeUSD_7D := as.numeric(volumeUSD_7D)]
+
 # FOR DEX must use dailyTradeVolumeUSD instead of tradeVolumeUSD
-pools_k_dex <- getPoolStats_acala_dex('karura')
-setnames(pools_k_dex, "totalTVL", "tvlUSD_DEX")
+pools_k_dex <- getPoolStats_acala_dex('karura') %>%
+  setnames("totalTVL", "tvlUSD_DEX")
+pools_k_dex[, volumeUSD_24H := as.numeric(volumeUSD_24H)]
+pools_k_dex[, volumeUSD_7D := as.numeric(volumeUSD_7D)]
 
 pools_k[, .(id, token0.name, token1.name)]
 
@@ -53,20 +82,13 @@ both_k <- merge(pools_k[, .(id, tvlUSD, volumeUSD_24H, volumeUSD_7D)],
                 by = "id",
                 all = TRUE,
                 suffixes = c("", "_DEX"))
-both_k[, TVL_Difference := abs(tvlUSD - tvlUSD_DEX)] %>% 
-  setorder(-TVL_Difference)
+both_k[, Absolute := abs(tvlUSD - tvlUSD_DEX)] %>% 
+  setorder(-Absolute)
+both_k[, Percentage := round((Absolute / min(tvlUSD, tvlUSD_DEX)) * 100, 1)]
 
-pools_a <- getPoolStats_acala('acala')
-pools_a_dex <- getPoolStats_acala_dex('acala')
-setnames(pools_a_dex, "totalTVL", "tvlUSD_DEX")
-
-both_a <- merge(pools_a[, .(id, tvlUSD, volumeUSD_24H, volumeUSD_7D)],
-                pools_a_dex[, .(id, tvlUSD_DEX, volumeUSD_24H, volumeUSD_7D)],
-                by = "id",
-                all = TRUE,
-                suffixes = c("", "_DEX"))
-both_a[, TVL_Difference := abs(tvlUSD - tvlUSD_DEX)] %>% 
-  setorder(-TVL_Difference)
+both_k[, Percentage := ifelse(Percentage > 5, 
+                   cell_spec(Percentage, color = "red"), 
+                   cell_spec(Percentage, color = "green"))]
 
 ```
 
@@ -77,8 +99,9 @@ Row
 
 ```{r acala1}
 
-knitr::kable(both_a, escape = FALSE, format.args = list(big.mark = ",")) %>%
-  kable_styling()
+knitr::kable(both_a, escape = FALSE, digits = 2, format.args = list(big.mark = ",")) %>%
+  kable_styling() %>%
+  add_header_above(c("Pool" = 1, "acala-subql" = 3, "acala-dex-subql" = 3, "Difference" = 2))
 
 ```
 
@@ -90,8 +113,9 @@ Row
 
 ```{r karura1}
 
-knitr::kable(both_k, escape = FALSE, format.args = list(big.mark = ",")) %>%
-  kable_styling()
+knitr::kable(both_k, escape = FALSE, digits = 2, format.args = list(big.mark = ",")) %>%
+  kable_styling() %>%
+  add_header_above(c("Pool" = 1, "acala-subql" = 3, "acala-dex-subql" = 3, "Difference" = 2))
 
 ```
 
