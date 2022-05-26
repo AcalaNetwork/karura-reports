@@ -406,13 +406,10 @@ rd <- merge(rd, subscanr::tokens[, .(Token, decimals)], by.x = "Symbol", by.y = 
 rd[, adj := 10 ** as.numeric(decimals)]
 rd[, Amount := as.numeric(Amount) / adj]
 rd[, priorAmount := as.numeric(priorAmount) / adj]
-rd[, 'Amount Change ' %+% i %+% 'D' := Amount - priorAmount]
+rd[, change := Amount - priorAmount]
 
-rd[, 'Amount Change ' %+% i %+% 'D' := ifelse(
-  'Amount Change ' %+% i %+% 'D' < 0,
-  cell_spec('Amount Change ' %+% i %+% 'D', color = "red", bold = TRUE),
-  cell_spec('Amount Change ' %+% i %+% 'D', color = "green", italic = TRUE))]
-
+rd$change = ifelse(rd$change < 0, cell_spec(rd$change, color = "red", bold = TRUE), cell_spec(rd$change, color = "green", italic = TRUE))
+setnames(rd, 'change', 'Amount Change ' %+% i %+% 'D')
 
 ```
 
