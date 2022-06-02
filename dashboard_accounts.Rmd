@@ -200,7 +200,7 @@ Row
 
 * Overlap between Subscan and API: `r format(karura_both[api == 1 & subscan == 1, .N], big.mark = ",")`
 
-Similar to Acala Network, the acala-subql project for Karura Network seems to have a poor overlap with the accounts reported by the API, whereas Subscan has 100% overlap (all the accounts reported by the API are also reported by Subscan -- Subscan is showing some extra accounts as well!).  
+Similar to Acala Network, the acala-subql project for Karura Network seems to have a poor overlap with the accounts reported by the API, whereas Subscan has very high overlap.  
 
 Row
 ----
