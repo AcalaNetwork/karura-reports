@@ -45,8 +45,8 @@ endpage <- 2e9
 KSM_tokens <- getAccountBalance_acala_token("karura", window = 1, filter = 'filter: {tokenId: {in: ["KSM","LKSM"]}, total: {greaterThan: "0"}} ', endpage = endpage)
 KSM_token_wide <- dcast(KSM_tokens, accountId ~ tokenId, value.var = 'total')
 
-# DOT_tokens <- getAccountBalance_acala_token("acala", window = 1, filter = 'filter: {tokenId: {in: ["DOT","LDOT"]}, total: {greaterThan: "0"}} ', endpage = endpage)
-# DOT_token_wide <- dcast(DOT_tokens, accountId ~ tokenId, value.var = 'total')
+DOT_tokens <- getAccountBalance_acala_token("acala", window = 1, filter = 'filter: {tokenId: {in: ["DOT","LDOT"]}, total: {greaterThan: "0"}} ', endpage = endpage)
+DOT_token_wide <- dcast(DOT_tokens, accountId ~ tokenId, value.var = 'total')
 
 ```
 
@@ -74,9 +74,9 @@ loans_karura_wide <- dcast(loans_karura, ownerId ~ collateralId, value.var = c('
 karura_addr <- merge(KSM_token_wide, aUSD_karura_wide, by = 'accountId', all = TRUE)
 karura_addr <- merge(karura_addr, loans_karura_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
 
-acalaEval <- FALSE
-# acala_addr <- merge(DOT_token_wide, aUSD_acala_wide, by = 'accountId', all.x = TRUE)
-# acala_addr <- merge(acala_addr, loans_acala_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
+# acalaEval <- FALSE
+acala_addr <- merge(DOT_token_wide, aUSD_acala_wide, by = 'accountId', all.x = TRUE)
+acala_addr <- merge(acala_addr, loans_acala_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
 
 ```
 
