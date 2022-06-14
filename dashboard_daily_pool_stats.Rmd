@@ -157,7 +157,8 @@ Row
 
 pool <- a_pools[3]
 dygraph(a_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
-        main = "TVL in thousands ($)")  %>% 
+        main = maintxt %+% pool,
+        ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
 dygraph(a_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
