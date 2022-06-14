@@ -58,9 +58,10 @@ k_dp_dex[, tvlUSD := totalTVL / 1e3]
 k_dp_dex[, date := as.Date(timestamp)]
 k_dp <- getPoolDayData_acala("karura")
 k_dp[, tvlUSD := tvlUSD / 1e3]
+k_dp[, token0Price := token0Close]
 k_dp[, date := as.Date(date)]
 k_both <- merge(k_dp,
-                k_dp_dex[, .(poolId, date, token0Id, token1Id, token0Amount, token1Amount, tvlUSD)],
+                k_dp_dex,
                 by = c("poolId","date"),
                 all = TRUE,
                 suffixes = c("","_DEX"))
@@ -70,17 +71,34 @@ k_pools <- sort(unique(k_both$poolId))
 a_dp_dex <- getDailyPool_acala_dex("acala")
 a_dp_dex[, tvlUSD := totalTVL / 1e3]
 a_dp_dex[, date := as.Date(timestamp)]
+
+a_dp_dex[, test := token1Amount / token0Amount]
+a_dp_dex[, .(token0Id, token1Id, token0Price, token1Price, test)]
+
 a_dp <- getPoolDayData_acala("acala")
 a_dp[, tvlUSD := tvlUSD / 1e3]
+a_dp[, token0Price := token0Close]
 a_dp[, date := as.Date(date)]
 a_both <- merge(a_dp,
-                a_dp_dex[, .(poolId, date, token0Id, token1Id, token0Amount, token1Amount, tvlUSD)],
+                a_dp_dex,
                 by = c("poolId","date"),
                 all = TRUE,
                 suffixes = c("","_DEX"))
 a_pools <- sort(unique(a_both$poolId))
 
+   "token0Amount": "2461670866930004326",
+          "token1Amount": "1872076768294621",
+          "tvlUSD": "4923321763900343588776521",
+          "token0Close": "773400515"
+   
+   (2461670866930004326 * 773400515) / 1e18
+   15263590546
+   
+x  "exchange0": "1478312353408",
+          "exchange1": "676447029407"
+1/.67
 
+   
 ```
 
 # Acala Pools {.tabset}
@@ -104,6 +122,10 @@ dygraph(a_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)],
 dygraph(a_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+
+dygraph(a_both[poolId == pool, .(date, token0Price, token0Price_DEX)], 
+        main = "Token 0 Price")  %>% 
+  dySeries("token0Price", stepPlot = TRUE, fill = TRUE)
 
 ```
 

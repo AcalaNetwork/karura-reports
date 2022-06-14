@@ -1,0 +1,371 @@
+---
+title: "Acala / Karura Income Statement"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+params:
+  network: Acala
+---
+
+```{css custom1, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
+
+```{r global, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+library(dygraphs)
+library(kableExtra)
+library(formattable)
+library(lubridate)
+library(flexdashboard)
+library(DT)
+library(subscanr)
+library(formattable)
+library(ghql)
+x <- GraphqlClient$new()
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+library(reticulate)
+# use_python("/opt/homebrew/bin/python3.9")
+
+network <- params$network
+
+# define constants
+if (tolower(network) == 'acala') {
+  dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala-dex-subql"
+  nativeToken <- "ACA"
+  api_url = 'wss://acala-rpc-0.aca-api.network'
+
+} else if (tolower(network) == 'karura') {
+  dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura-dex-subql"
+  nativeToken <- "KAR"
+  api_url = 'wss://karura.polkawallet.io'
+  
+}
+
+# Get prices & blocks
+method <- "tokenDailyData"
+edges <- "tokenId price timestamp updateAtBlockId"
+prices <- get_graph(dex_endpoint, method, edges, window = 31, filter = '')
+prices[, block := as.numeric(updateAtBlockId) - 1]
+prices[, date := as.Date(timestamp) - 1]
+# prices <- merge(prices, tokens, by.x = "tokenId", by.y = "Token")
+# prices[, adj := 10**as.numeric(decimals)]
+prices[, price := as.numeric(price) / 10**18]
+prices[, max_block := max(as.numeric(updateAtBlockId)), by = tokenId]
+prices[, tokenId := fixToken(tokenId)]
+# prices[tokenId=="KSM"]
+
+# Get the max block for each date and feed that to the python code
+minDate <- today() - 32
+history <- prices[, max(block), by = date] %>%
+  setorder(date)
+history[, blockDelta := V1 - shift(V1)]
+block_history <- history[blockDelta > 5000 & date > minDate, V1]
+write.csv(block_history, "history.csv", row.names = FALSE)
+  
+```
+
+```{python, include=FALSE}
+from substrateinterface import SubstrateInterface
+
+import pandas as pd
+import numpy as np
+from datetime import date
+history = pd.read_csv('history.csv', index_col = None)
+block_history = history['x']
+# block_id = block_history[30]
+
+
+# pull in the balance for `acct` based on each block in `history`
+def get_fees(url, acct, block_history):
+    data = []
+    try:
+        substrate = SubstrateInterface(url)
+        for j in block_history:
+            hash = substrate.get_block_hash(block_id = j)        
+            timestamp = substrate.query(module='Timestamp',storage_function='Now',block_hash=hash).value
+            block = substrate.get_block_number(hash)
+            # result = substrate.query('System', 'Account', params = [acct], block_hash = hash)
+            # free = result.value['data']['free']
+            balance_info = substrate.get_runtime_state(
+                module='System',
+                storage_function='Account',
+                params=[acct],
+                block_hash=hash
+            ).get('result')
+            balance = balance_info.get('data').get('free', 0) # / 10**12
+            outi = {"Block": block, "Time": timestamp, 'Balance': balance}
+            data.append(outi)
+    except Exception as e:
+        balance = None
+    return data
+            
+# url = 'wss://acala-rpc-0.aca-api.network'
+url = r.api_url
+acct = '23M5ttkmR6KcoTAAE6gcmibnKFtVaTP5yxnY8HF1BmrJ2A1i'
+fees_api = get_fees(url, acct, block_history)
+fees_api = pd.DataFrame(fees_api)
+fees_api['Time'] = pd.to_datetime(fees_api['Time'],unit='ms')
+
+```
+
+```{r treasury, cache = TRUE, include=FALSE}
+
+# Treasury account from Python API fees
+fees <- py$fees_api %>%
+  as.data.table
+fees[, Balance := as.numeric(Balance) / 10**12]
+
+fees[, FeeIncome := Balance - shift(Balance, 1)]
+fees[, date := as.Date(Time)]
+
+# price <- prices[tokenId == nativeToken, .(tokenId, date, price)]
+# fees <- merge(fees, price, by = 'date', all.x = TRUE)
+# fees[, FeeIncomeUSD := FeeIncome * price]
+
+# Stability fee
+collaterParams <- getLoansCollateralParams_acala_loan(network)
+collaterParams <- collaterParams[!duplicated(collateral.id), .(collateral.id, APR)]
+pos <- getLoansDailyPositions_acala_loan(network, window = 31) 
+pos <- pos[, .(timestamp, collateral.id, debitVolumeUSD, Date)]
+pos <- merge(pos, collaterParams, by = "collateral.id", all.x = TRUE)
+pos[, dailyAPR := APR / 365]
+pos[, dailyFee := as.numeric(debitVolumeUSD) * dailyAPR]
+dailyStability <- pos[, sum(dailyFee), by = Date] %>%
+  setnames("V1", "Stability_Fee_USD") %>%
+  setorder(Date)
+fees <- merge(fees, dailyStability, by.x = 'date', by.y = 'Date', all.x = TRUE)
+
+if (network == 'Karura') {
+  # get bad debt penalty
+  cdp2 <- getLiquidateUnsafeCDP_acala_loan(network, window = 31)
+  cdp2[, block.id := as.numeric(block.id)]
+  cdp3 <- cdp2[, .(Date, badDebitVolumeUSD)]
+  cdp4 <- cdp3[, sum(as.numeric(badDebitVolumeUSD)) * .15, by = Date] %>%
+    setnames("V1", "CDP_Penalty_Fee_USD")
+  fees <- merge(fees, cdp4, by.x = 'date', by.y = 'Date', all.x = TRUE)
+  fees[is.na(CDP_Penalty_Fee_USD), CDP_Penalty_Fee_USD := 0]
+  liquidations <- cdp2[, .(block.id, timestamp, collateral.id, collateralVolumeUSD, badDebitVolumeUSD)]
+
+} else {
+
+  d <- list()
+  for (i in 1:20) {
+    cdp_rawdata <- get_subscan_events(nobs = 100, network = network, module = 'cdpengine', call = 'LiquidateUnsafeCDP', start_page = i, extract = TRUE)
+    cdp <- cdp_rawdata$cdpengine_LiquidateUnsafeCDP
+    cdp[, date := as.Date(time)]
+    d[[i]] <- cdp[time >= minDate]
+    if (min(cdp$date) < minDate) break
+  }
+  cdp <- rbindlist(d)
+  cdp[, CurrencyId := fixToken(CurrencyId)]
+  cdp[, block_num := as.numeric(block_num)]
+  cdp[, BadDebtValue := as.numeric(BadDebtValue) / 10**12]
+  cdp[, CollateralAmount := as.numeric(CollateralAmount) / 10**12]
+  cdp_daily <- cdp[, sum(as.numeric(BadDebtValue)) * .15, by = date] %>%
+    setnames("V1", "CDP_Penalty_Fee_USD")
+  fees <- merge(fees, cdp_daily, by.x = 'date', by.y = 'date', all.x = TRUE)
+  liquidations <- cdp[, .(block_num, time, CurrencyId, CollateralAmount, BadDebtValue)]
+
+}
+fees[is.na(CDP_Penalty_Fee_USD), CDP_Penalty_Fee_USD := 0]
+fees <- tail(fees, 30)
+fees7 <- tail(fees, 7)
+
+sum30 <- fees[, .(sum(FeeIncome, na.rm = TRUE), 
+                  sum(Stability_Fee_USD, na.rm = TRUE),
+                  sum(CDP_Penalty_Fee_USD, na.rm = TRUE))] %>%
+  setnames(c("V1", "V2", "V3"), 
+           c("30D Sum FeeIncome_" %+% nativeToken, "30D Sum Stability_Fee_USD", "30D Sum CDP_Penalty_Fee_USD"))
+
+sum7 <- fees7[, .(sum(FeeIncome, na.rm = TRUE), 
+                  sum(Stability_Fee_USD, na.rm = TRUE),
+                  sum(CDP_Penalty_Fee_USD, na.rm = TRUE))] %>%
+  setnames(c("V1", "V2", "V3"), 
+           c("7D Sum FeeIncome_" %+% nativeToken, "7D Sum Stability_Fee_USD", "7D Sum CDP_Penalty_Fee_USD"))
+
+# test <- merge(cdp[, .(date, CurrencyId, block_num, BadDebtValue)],
+#               cdp2[, .(Date, collateral.id, block.id, badDebitVolumeUSD)],
+#               by.x = c('CurrencyId', 'block_num'),
+#               by.y = c('collateral.id', 'block.id'),
+#               all = TRUE)
+# View(test)
+
+
+# liquid staking fee
+addr <- "23M5ttkmR6Kco5p3LFGKMpMv4zvLkKdUQWW1wGGoV8zDX3am"
+filter <- ' filter: {accountId: {equalTo: "23M5ttkmR6Kco5p3LFGKMpMv4zvLkKdUQWW1wGGoV8zDX3am"}}'
+dat1 <- getDailyAccountBalance_acala_token(network, window = 31, filter = filter)
+price <- prices[updateAtBlockId == max_block, .(tokenId, price)]
+dat1 <- merge(dat1, 
+              prices[, .(tokenId, timestamp, price)], 
+              by = c("timestamp","tokenId"), 
+              all.x = TRUE)
+dat1[, balanceUSD := free * price]
+data1 <- dat1[free > 1, .(tokenId, timestamp, free, price, balanceUSD)]
+
+
+# builtin1 <- try(subscanr::get_subscan_account_tokens(network = network, addr))
+# while (inherits(builtin1, "try-error")) {
+#   Sys.sleep(3)
+#   builtin1 <- try(subscanr::get_subscan_account_tokens(network, addr))
+# }
+# time <- as.POSIXct(builtin1$generated_at, origin = "1970-01-01", tz = 'UTC')
+# data1 <- builtin1$data$builtin %>%
+#   as.data.table
+# data1[, balance := as.numeric(balance) / 10**as.numeric(decimals)]
+# price <- prices[updateAtBlockId == max_block, .(tokenId, price)]
+# data1 <- merge(data1, price, by.x = "symbol", by.y = "tokenId", all.x = TRUE)
+# data1[, balanceUSD := balance * price]
+# data1[, .(symbol, balance, price, balanceUSD)]
+
+# Stablecoin stability fee + liquidation fee, aUSD balance
+addr <- "23M5ttkmR6KcnvsNJdmYTpLo9xfc54g8uCk55buDfiJPon69"
+filter <- ' filter: {accountId: {equalTo: "23M5ttkmR6KcnvsNJdmYTpLo9xfc54g8uCk55buDfiJPon69"}}'
+dat2 <- getDailyAccountBalance_acala_token(network, window = 31, filter = filter)
+price <- prices[updateAtBlockId == max_block, .(tokenId, price)]
+dat2 <- merge(dat2, 
+              prices[, .(tokenId, timestamp, price)], 
+              by = c("timestamp","tokenId"), 
+              all.x = TRUE)
+dat2[, balanceUSD := free * price] 
+setorder(dat2, tokenId, timestamp)
+data2 <- dat2[free > 1, .(tokenId, timestamp, free, price, balanceUSD)]
+
+# addr <- "qmmNufxeWaAUp4SVa1Vi1owrzP1xhR6XKdorEcck17RF498"; network = "Karura"
+# builtin2 <- try(subscanr::get_subscan_account_tokens(network, addr))
+# while (inherits(builtin2, "try-error")) {
+#   Sys.sleep(3)
+#   builtin2 <- try(subscanr::get_subscan_account_tokens(network, addr))
+# }
+# time <- as.POSIXct(builtin2$generated_at, origin = "1970-01-01", tz = 'UTC')
+# data2 <- builtin2$data$builtin %>% 
+#   as.data.table
+# data2[, balance := as.numeric(balance) / 10**as.numeric(decimals)]
+# price <- prices[updateAtBlockId == max_block, .(tokenId, price)]
+# data2 <- merge(data2, price, by.x = "symbol", by.y = "tokenId", all.x = TRUE)
+# data2[, balanceUSD := balance * price]
+# data2[, .(symbol, balance, price, balanceUSD)]
+
+# It should have a section display the current holding and dollar value,
+# last 7 day income, last 30 day income, some charts if you have time
+```
+
+# `r network` Income {.tabset}
+
+Row
+----
+
+### 7D Fee Income
+
+```{r sum7}
+
+knitr::kable(sum7, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+```
+
+Row
+----
+
+### 30D Fee Income
+
+```{r sum30}
+
+if (network=="Acala") print("__Stability Fees currently not accurate for Acala -- Will be fixed soon__")
+
+knitr::kable(sum30, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+dat <- fees[, .(date, FeeIncome, Stability_Fee_USD, CDP_Penalty_Fee_USD)]
+main <- network %+% " Daily Fees"
+dygraph(dat, main = main)  %>% 
+    dySeries("FeeIncome", stepPlot = TRUE, fill = TRUE)
+
+rm(dat)
+
+```
+
+Row
+----
+
+### Daily Fee Data
+
+```{r daily}
+
+knitr::kable(fees, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+```
+
+# `r network` Balances {.tabset}
+
+Row
+----
+
+### Balance for account 23M5ttkmR6Kco5p3LFGKMpMv4zvLkKdUQWW1wGGoV8zDX3am
+
+```{r data1}
+
+knitr::kable(data1[timestamp == max(timestamp)], escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+dat <- data1[, .(timestamp, tokenId, balanceUSD)]
+dat[, timestamp := as.Date(timestamp)]
+us <- unique(dat$tokenId)
+
+main <- network %+% " " %+% us[1] %+% " Treasury in 23M5ttkmR6Kco5p3LFGKMpMv4zvLkKdUQWW1wGGoV8zDX3am"
+dygraph(dat[tokenId == us[1], .(timestamp, balanceUSD)], main = main)  %>% 
+    dySeries("balanceUSD", stepPlot = TRUE, fill = TRUE)
+
+if (length(us) > 1) {
+  main <- network %+% " " %+% us[2] %+% " Treasury in 23M5ttkmR6Kco5p3LFGKMpMv4zvLkKdUQWW1wGGoV8zDX3am"
+  dygraph(dat[tokenId == us[2], .(timestamp, balanceUSD)], main = main)  %>% 
+      dySeries("balanceUSD", stepPlot = TRUE, fill = TRUE)
+}
+
+rm(dat)
+
+```
+
+Row
+----
+
+### Balance for account 23M5ttkmR6KcnvsNJdmYTpLo9xfc54g8uCk55buDfiJPon69
+
+```{r data2}
+
+knitr::kable(data2[timestamp == max(timestamp)], escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+dat <- data2[, .(timestamp, tokenId, balanceUSD)]
+dat[, timestamp := as.Date(timestamp)]
+us <- unique(dat$tokenId)
+
+main <- network %+% " " %+% us[1] %+% " Treasury in 23M5ttkmR6KcnvsNJdmYTpLo9xfc54g8uCk55buDfiJPon69"
+dygraph(dat[tokenId == us[1], .(timestamp, balanceUSD)], main = main)  %>% 
+    dySeries("balanceUSD", stepPlot = TRUE, fill = TRUE)
+
+if (length(us) > 1) {
+  main <- network %+% " " %+% us[2] %+% " Treasury in 23M5ttkmR6KcnvsNJdmYTpLo9xfc54g8uCk55buDfiJPon69"
+  dygraph(dat[tokenId == us[2], .(timestamp, balanceUSD)], main = main)  %>% 
+      dySeries("balanceUSD", stepPlot = TRUE, fill = TRUE)
+}
+
+rm(dat)
+
+```
