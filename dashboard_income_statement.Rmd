@@ -307,8 +307,6 @@ Row
 
 ```{r sum30}
 
-if (network=="Acala") cat("__Stability Fees currently not accurate for Acala -- Will be fixed soon__")
-
 knitr::kable(sum30, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
