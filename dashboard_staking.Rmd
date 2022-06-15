@@ -74,7 +74,7 @@ loans_karura_wide <- dcast(loans_karura, ownerId ~ collateralId, value.var = c('
 karura_addr <- merge(KSM_token_wide, aUSD_karura_wide, by = 'accountId', all = TRUE)
 karura_addr <- merge(karura_addr, loans_karura_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
 
-# acalaEval <- FALSE
+
 acala_addr <- merge(DOT_token_wide, aUSD_acala_wide, by = 'accountId', all.x = TRUE)
 acala_addr <- merge(acala_addr, loans_acala_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
 
@@ -163,7 +163,7 @@ Row
 3) LDOT User = LDOT Balance > 0
 4) LP User = depositAmount_LDOT > 0
 
-```{r DOT, eval = acalaEval }
+```{r DOT}
 
 # DOT
 # DOT on Acala but not LDOT
@@ -197,7 +197,7 @@ Row
 3) AUSD Vault Open = depositAmount_KSM > 0 OR depositAmount_LKSM > 0
 4) Vault open but no AUSD minted = depositAmount_KSM > 0 OR depositAmount_LKSM > 0 AND (is.na(debitAmount_KSM) AND is.na(debitAmount_LKSM)
 
-```{r AUSD, eval = acalaEval}
+```{r AUSD}
 
 # aUSD
 # No aUSD
@@ -233,7 +233,7 @@ Row
 3) No ACA Staking = ACA Balance > 0 
 4) No ACA = is.na(ACA Balance)
 
-```{r ACA, eval = acalaEval}
+```{r ACA}
 
 # names(acala_addr)
 # summary(acala_addr$debitAmount_ACA)
