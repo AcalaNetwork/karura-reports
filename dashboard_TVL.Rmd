@@ -8,7 +8,7 @@ output:
     source_code: embed
 params:
   network: Karura
-  window: 7
+  window: 120
   
 ---
 
@@ -73,13 +73,19 @@ def getTotalIssuanceKSM():
     result = substrate.query('AcalaOracle', 'Values', params = [{'Token': 'KSM'}], block_hash = hash)
   
     # homa = substrate.query(module='Homa',storage_function='TotalStakingBonded', block_hash = hash)
-    homa = substrate.query_map(module='Homa',storage_function='StakingLedgers', block_hash = hash)
-    amount = 0
-    for res in homa:
-      amount += res[1].value['bonded']
-  
-    # LKSM to KSM ratio
-    ratio = lksm.value / amount 
+    try:
+        homa = substrate.query_map(module='Homa',storage_function='StakingLedgers', block_hash = hash)
+        amount = 0
+        for res in homa:
+            amount += res[1].value['bonded']
+            
+        # LKSM to KSM ratio
+        ratio = lksm.value / amount 
+
+    except:
+        amount = 0
+        # LKSM to KSM ratio
+        ratio = 8.5
     
     # Build price DataFrame
     p = substrate.query('AcalaOracle', 'Values', params = [{'Token': 'KSM'}], block_hash = hash)
@@ -144,13 +150,19 @@ def getTotalIssuanceDOT():
     lcdot = substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'LiquidCrowdloan': 13}], block_hash = hash)
     
     # homa = substrate.query(module='Homa',storage_function='TotalStakingBonded', block_hash = hash)
-    homa = substrate.query_map(module='Homa',storage_function='StakingLedgers', block_hash = hash)
-    amount = 0
-    for res in homa:
-      amount += res[1].value['bonded']
-  
-    # LDOT to DOT ratio
-    ratio = ldot.value / amount 
+    try:
+        homa = substrate.query_map(module='Homa',storage_function='StakingLedgers', block_hash = hash)
+        amount = 0
+        for res in homa:
+            amount += res[1].value['bonded']
+            
+        # LKSM to KSM ratio
+        ratio = ldot.value / amount 
+
+    except:
+        amount = 0
+        # LDOT to DOT ratio
+        ratio = 10
     
     # Build price DataFrame
     tmp = []
