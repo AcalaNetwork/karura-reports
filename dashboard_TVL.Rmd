@@ -27,7 +27,6 @@ knitr::opts_chunk$set(
 )
 
 library(ggplot2)
-# library(dygraphs)
 library(kableExtra)
 library(formattable)
 library(lubridate)
@@ -287,10 +286,12 @@ if (tolower(network) == "acala") {
   dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + stableCoinTVL]
 }
 
-
-
-
-fwrite(x = dailyTVL, file = network %+% "_TVL.csv")
+history <- fread(file = network %+% "_TVL.csv")
+history[, Date := as.Date(Date)]
+minDate <- min(dailyTVL$Date)
+comb <- rbind(history[Date < minDate], dailyTVL)
+fwrite(x = comb, file = network %+% "_TVL.csv")
+dailyTVL <- comb
 
 ```
 
