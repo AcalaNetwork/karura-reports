@@ -1,0 +1,137 @@
+---
+title: "Acala / Karura aUSD Dashboard"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+
+---
+
+```{css custom1, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
+
+```{r global, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+library(ggplot2)
+# library(dygraphs)
+library(kableExtra)
+library(formattable)
+library(lubridate)
+library(flexdashboard)
+library(DT)
+library(subscanr)
+library(formattable)
+library(ghql)
+x <- GraphqlClient$new()
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+window <- today() - as.Date("2021-12-31") + 1
+
+# Liquidity Pool TVL ($3.72M) = totalDefiTvl = totalDexTvl + totalDexLockedTvl + homaLocked + stableCoinTvl
+dex <- getDailyPools_acala_dex("karura", window) %>%
+  setorder(Date, pair)
+
+dailyTVL <- dex[, max(updateAtBlock.id), by = Date] %>%
+  setnames("V1", "Block")
+
+library(reticulate)
+# use_python("/opt/homebrew/bin/python3.9")
+```
+
+```{python, include=FALSE}
+from substrateinterface import SubstrateInterface
+
+import pandas as pd
+
+def getTotalIssuance(network):
+    if network=="Karura":
+        url = 'wss://karura.polkawallet.io'
+        token = 'KUSD'
+    else:
+        url = 'wss://acala-rpc-0.aca-api.network'
+        token = 'AUSD'
+        
+    substrate = SubstrateInterface(url)
+    data = []
+    for block_id in r.blocks:
+        hash = substrate.get_block_hash(int(block_id))
+        ausd = substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': token}], block_hash = hash)
+        outi = {"Block": block_id, 'aUSD': ausd.value / 10**12}
+        data.append(outi)
+    
+    out = pd.DataFrame(data)
+    return out
+
+```
+
+
+
+```{r tvl, cache = TRUE, include=FALSE}
+
+  blocks <- dailyTVL$Block
+  kusd = py$getTotalIssuance("Karura")
+  ausd = py$getTotalIssuance("Acala")
+  dailyTVL <- merge(dailyTVL, kusd, by = "Block") %>%
+    setnames("aUSD", "aUSD_Karura")
+  dailyTVL <- merge(dailyTVL, ausd, by = "Block") %>%
+    setnames("aUSD", "aUSD_Acala")
+  dailyTVL[, aUSD_Total := aUSD_Karura + aUSD_Acala]
+  
+```
+
+# aUSD {.tabset}
+
+Row
+----
+
+### Components of Total Value Locked
+
+```{r k_plot1}
+
+dat <- melt(data = dailyTVL[, .(Date, aUSD_Karura, aUSD_Acala)], 
+      id.vars = "Date",
+      value.name = "aUSD")
+dat[, aUSD := aUSD / 1e6]
+ 
+# Stacked
+ggplot(dat, aes(fill=variable, y=aUSD, x=Date)) + 
+    geom_bar(position="stack", stat="identity") +
+    ggtitle(label="Issuance of aUSD") + 
+    ylab("aUSD (in millions USD)")
+
+```
+
+Row
+----
+
+### aUSD Issuance
+
+```{r ausd}
+
+knitr::kable(dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+```
+
+Row
+----
+
+### Sources and Notes
+
+Please click on the *Source Code* link at the top of the document to see the full source code.  Here is a summary:
+
+#### aUSD
+- aUDS (or kUSD) obtained from the [py-substrate-interface](https://github.com/polkascan/py-substrate-interface) using function *substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': 'AUSD'}], block_hash = hash)*
