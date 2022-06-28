@@ -50,28 +50,23 @@ import numpy as np
 from datetime import date
 from pprint import pprint
 
-Karura = 'wss://karura.polkawallet.io'
-Acala = 'wss://acala-rpc-0.aca-api.network'
-            
 def get_accounts(network):
     if network == "Acala":
-        url = Acala
+      url = 'wss://acala-rpc-0.aca-api.network'
     else:
-        url = Karura
-        
-    fname = f"{network}_accounts.csv"
+      url = 'wss://karura.polkawallet.io'
+          
+    fname = f"~/data/subscan/{network}_accounts.csv"
     substrate = SubstrateInterface(url)
     result = substrate.query_map('System', 'Account')
-
+  
     data = []
     for res in result:
-        # res = result[0]    
-        # print(f"Free balance of account '{account.value}': {account_info.value['data']['free']}")
-        acct = res[0].value
-        free = res[1].value['data']['free']
-        outi = {"account": acct, "free": free} 
-        data.append(outi) 
-        
+      acct = res[0].value
+      free = res[1].value['data']['free']
+      outi = {"account": acct, "free": free} 
+      data.append(outi)
+      
     out = pd.DataFrame(data)           
     out.to_csv(fname, mode = "w", index = False, header = True)
 
@@ -80,26 +75,34 @@ get_accounts("Karura")
 
 ```
 
-```{r tokens, cache = TRUE, include=FALSE}
+```{r acala, cache = TRUE, include=FALSE}
 
 accounts_sq <- getAccounts_acala('Acala', window = 1, filter = '', endpage = 2000)
-fwrite(accounts_sq, file = "accounts_sq.csv")
+fwrite(accounts_sq, file = "~/data/accounts_sq.csv")
 accounts_ss <- get_subscan_accounts('Acala', nobs = 2000000, start_page = 1)
-fwrite(accounts_ss, file = "accounts_ss.csv")
+fwrite(accounts_ss, file = "~/data/accounts_ss.csv")
+
+```
+
+```{r karura, cache = TRUE, include=FALSE}
 
 karura_accounts_sq <- getAccounts_acala('Karura', window = 1, filter = '', endpage = 2000)
-fwrite(karura_accounts_sq, file = "karura_accounts_sq.csv")
+fwrite(karura_accounts_sq, file = "~/data/karura_accounts_sq.csv")
 karura_accounts_ss <- get_subscan_accounts('Karura', nobs = 2000000, start_page = 1)
-fwrite(karura_accounts_ss, file = "karura_accounts_ss.csv")
+fwrite(karura_accounts_ss, file = "~/data/karura_accounts_ss.csv")
+```
+
+
+```{r read_in, cache = TRUE, include=FALSE}
 
 # Acala data
-accounts_api <- fread(file = "~/Python_HOME/Acala_accounts.csv")
+accounts_api <- fread(file = "~/data/Acala_accounts.csv")
 accounts_api[, api := 1]
 
-accounts_sq <- fread(file = "~/R_HOME/subscanr/accounts_sq.csv")
+accounts_sq <- fread(file = "~/data/accounts_sq.csv")
 accounts_sq[, subquery := 1]
 
-accounts_ss <- fread(file = "~/R_HOME/subscanr/Acala_accounts2.csv", fill = TRUE)
+accounts_ss <- fread(file = "~/data/Acala_accounts2.csv", fill = TRUE)
 accounts_ss[, subscan := 1]
 accounts_ss <- accounts_ss[list.address != '', .(list.address, list.balance, subscan)] %>%
   setnames(c("id", "balance", "subscan"))
@@ -112,13 +115,13 @@ both <- merge(both,
               all = TRUE)
 
 # Karura data
-karura_accounts_api <- fread(file = "~/Python_HOME/Karura_accounts.csv")
+karura_accounts_api <- fread(file = "~/data/Karura_accounts.csv")
 karura_accounts_api[, api := 1]
 
-karura_accounts_sq <- fread(file = "~/R_HOME/subscanr/karura_accounts_sq.csv")
+karura_accounts_sq <- fread(file = "~/data/karura_accounts_sq.csv")
 karura_accounts_sq[, subquery := 1]
 
-karura_accounts_ss <- fread(file = "~/R_HOME/subscanr/Karura_accounts2.csv", fill = TRUE)
+karura_accounts_ss <- fread(file = "~/data/Karura_accounts2.csv", fill = TRUE)
 karura_accounts_ss[, subscan := 1]
 
 karura_accounts_ss <- karura_accounts_ss[list.address != '', .(list.address, list.balance, subscan)] %>%

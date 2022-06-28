@@ -7,7 +7,7 @@ output:
     social: menu
     source_code: embed
 params:
-  network: Acala
+  network: Karura
 ---
 
 ```{css custom1, echo=FALSE}
@@ -141,7 +141,7 @@ fees[, date := as.Date(Time)]
 collaterParams <- getLoansCollateralParams_acala_loan(network)
 collaterParams <- collaterParams[!duplicated(collateral.id), .(collateral.id, APR)]
 if (network == 'Karura') {
-  pos <- getLoansDailyPositions_acala_loan(network, window = 3) 
+  pos <- getLoansDailyPositions_acala_loan(network, window = 31, staging = FALSE) 
 } else {
   pos <- getLoansDailyPositions_acala_loan(network, window = 31, staging = TRUE) 
 }
@@ -158,7 +158,7 @@ fees <- merge(fees, dailyStability, by.x = 'date', by.y = 'Date', all.x = TRUE)
 
 if (network == 'Karura') {
   # get bad debt penalty from subquery
-  cdp2 <- getLiquidateUnsafeCDP_acala_loan(network, window = 31)
+  cdp2 <- getLiquidateUnsafeCDP_acala_loan(network, window = 31, staging = FALSE)
 } else {
   cdp2 <- getLiquidateUnsafeCDP_acala_loan(network, window = 31, staging = TRUE)
 }

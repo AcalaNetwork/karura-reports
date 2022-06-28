@@ -1,0 +1,374 @@
+---
+title: "Acala / Karura TVL Dashboard"
+output:
+  flexdashboard::flex_dashboard:
+    orientation: rows
+    vertical_layout: scroll
+    social: menu
+    source_code: embed
+params:
+  network: Karura
+  window: 7
+  
+---
+
+```{css custom1, echo=FALSE}
+.dataTables_scrollBody {
+    max-height: 100% !important;
+}
+```
+
+```{r global, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(
+  message = FALSE,
+  warning = FALSE,
+  comment = "#>"
+)
+
+library(ggplot2)
+# library(dygraphs)
+library(kableExtra)
+library(formattable)
+library(lubridate)
+library(flexdashboard)
+library(DT)
+library(subscanr)
+library(formattable)
+library(ghql)
+x <- GraphqlClient$new()
+
+# Helper function to concat
+`%+%` <- function(a, b) paste0(a, b)
+
+# window = params$window
+window <- today() - as.Date("2021-12-31") + 1
+network = params$network
+
+# Liquidity Pool TVL ($3.72M) = totalDefiTvl = totalDexTvl + totalDexLockedTvl + homaLocked + stableCoinTvl
+dex <- getDailyPools_acala_dex(network, window) %>%
+  setorder(Date, pair)
+
+dailyTVL <- dex[, .(max(updateAtBlock.id), sum(tvlUSD)), by = Date] %>%
+  setnames(c("V1","V2"), c("Block","dexTVL"))
+
+library(reticulate)
+# use_python("/opt/homebrew/bin/python3.9")
+```
+
+```{python, include=FALSE}
+from substrateinterface import SubstrateInterface
+
+import pandas as pd
+
+def getTotalIssuanceKSM():
+    url = 'wss://karura.polkawallet.io'
+    substrate = SubstrateInterface(url)
+    hash = substrate.get_block_hash(block_id)
+    timestamp = substrate.query(module='Timestamp',storage_function='Now',block_hash=hash).value
+  
+    # Issuance
+    ksm = substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': 'KSM'}], block_hash = hash)
+    lksm = substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': 'LKSM'}], block_hash = hash)
+    result = substrate.query('AcalaOracle', 'Values', params = [{'Token': 'KSM'}], block_hash = hash)
+  
+    # homa = substrate.query(module='Homa',storage_function='TotalStakingBonded', block_hash = hash)
+    homa = substrate.query_map(module='Homa',storage_function='StakingLedgers', block_hash = hash)
+    amount = 0
+    for res in homa:
+      amount += res[1].value['bonded']
+  
+    # LKSM to KSM ratio
+    ratio = lksm.value / amount 
+    
+    # Build price DataFrame
+    p = substrate.query('AcalaOracle', 'Values', params = [{'Token': 'KSM'}], block_hash = hash)
+    price = p.value['value'] / 10**18
+  
+    bridge = (float(ksm.value / 10**12) + float(lksm.value / 10**12 / ratio)) * price
+    liquidKSM = float(amount / 10**12) * price
+    crowdloanTVL = (501137661910050505 / 10**12) * price
+    return [bridge, liquidKSM, crowdloanTVL, block_id, ratio]
+
+def getOraclePrices():
+    if r.network=="Karura":
+        url = 'wss://karura.polkawallet.io'
+    else:
+        url = 'wss://acala-rpc-0.aca-api.network'
+      
+    substrate = SubstrateInterface(url)
+    hash = substrate.get_block_hash(block_id)
+    timestamp = substrate.query(module='Timestamp',storage_function='Now',block_hash=hash).value
+    p = substrate.query_map('AcalaOracle', 'Values', block_hash = hash)
+    data = []
+    for res in p:
+        outi = {"token": str(res[0].value), "price": res[1].value['value'] / 10**18}
+        data.append(outi)
+    
+    out = pd.DataFrame(data)
+    return out
+ 
+ 
+def getRewards():
+    if r.network=="Karura":
+        url = 'wss://karura.polkawallet.io'
+    else:
+        url = 'wss://acala-rpc-0.aca-api.network'
+      
+    substrate = SubstrateInterface(url)
+    hash = substrate.get_block_hash(block_id)
+    timestamp = substrate.query(module='Timestamp',storage_function='Now',block_hash=hash).value
+  
+    data = []
+    rewards = substrate.query_map(module='Rewards',storage_function='PoolInfos', block_hash = hash)
+    for res in rewards:
+        if res[0][0] == 'Dex':
+            pair = res[0].value['Dex']['DexShare']
+            lp = substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'DexShare': pair}], block_hash = hash)
+            legs = substrate.query(module='Dex',storage_function='LiquidityPool', params = [pair], block_hash = hash)
+            outi = {"pair0": str(pair[0]), "pair1": str(pair[1]), "lp": str(lp.value), "leg0": str(legs[0].value), "leg1": str(legs[1].value)}
+            data.append(outi)
+    
+    out = pd.DataFrame(data)
+    return out
+
+def getTotalIssuanceDOT():
+    url = 'wss://acala-rpc-0.aca-api.network'
+    substrate = SubstrateInterface(url)
+    hash = substrate.get_block_hash(block_id)
+    timestamp = substrate.query(module='Timestamp',storage_function='Now',block_hash=hash).value
+  
+    # Total Issuance data
+    dot = substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': 'DOT'}], block_hash = hash)
+    ldot = substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': 'LDOT'}], block_hash = hash)
+    lcdot = substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'LiquidCrowdloan': 13}], block_hash = hash)
+    
+    # homa = substrate.query(module='Homa',storage_function='TotalStakingBonded', block_hash = hash)
+    homa = substrate.query_map(module='Homa',storage_function='StakingLedgers', block_hash = hash)
+    amount = 0
+    for res in homa:
+      amount += res[1].value['bonded']
+  
+    # LDOT to DOT ratio
+    ratio = ldot.value / amount 
+    
+    # Build price DataFrame
+    tmp = []
+    p = substrate.query_map('AcalaOracle', 'Values', block_hash = hash)
+    outi = {"id": {'Token': 'AUSD'}, "price": 1}
+    tmp.append(outi)
+    for res in p:
+      outi = {"id": res[0].value, "price": res[1].value['value'] / 10**18}
+      tmp.append(outi)
+      if res[0].value=={'Token': 'DOT'}:
+        outi = {"id": {'LiquidCrowdloan': 13}, "price": res[1].value['value'] / 10**18 / 1.4}
+        tmp.append(outi)
+        outi = {"id": {'Token': 'LDOT'}, "price": res[1].value['value'] / 10**18 / ratio}
+        tmp.append(outi)
+  
+    # Price lookup function
+    p = substrate.query('AcalaOracle', 'Values', params = [{'Token': 'DOT'}], block_hash = hash)
+    price = p.value['value'] / 10**18
+    
+    # Decimals lookup function
+    tmp = [{'id': {'Token': 'ACA'}, 'decimals': 12}, {'id': {'Token': 'DOT'}, 'decimals': 10}, {'id': {'Token': 'LDOT'}, 'decimals': 10}, {'id': {'LiquidCrowdloan': 13}, 'decimals': 10}, {'id': {'Token': 'AUSD'}, 'decimals': 12}]
+    decimals = pd.DataFrame(tmp)
+    def getDecimals(token):
+      return int(decimals[decimals['id'] == token]['decimals'])        
+  
+    bridge = (float(dot.value / 10**10) + float(ldot.value / 10**10 / ratio)) * price
+    liquidDOT = float(amount / 10**10) * price
+    lcDOT = float(lcdot.value / 10**10) * price
+    crowdloanTVL = (325159802323576263 / 10**10) * price
+    return [bridge, liquidDOT, crowdloanTVL, lcDOT, block_id, ratio]
+
+```
+
+
+
+```{r tvl, cache = TRUE, include=FALSE}
+
+# dailyTVL[, M := month(Date) %+% year(Date)]
+# dailyTVL[, maxDate := max(Date), by = M]
+# dailyTVL <- dailyTVL[Date == maxDate]
+
+# LP Token Staking TVL = totalDexTvl = useTotalDexPoolTVL()
+# totalDexLockedTvl = useTotalStaking() = api.query.dex?.liquidityPool
+# KSM Bridge TVL = totalIssuanceKSM = useTotalIssuance('KSM') = api.query.tokens?.totalIssuance
+dailyTVL[, bridgeTVL := 0]
+# Liquid KSM TVL = totalLocked in Homa = useState()
+dailyTVL[, liquidStakingTVL := 0]
+# homeLocked = totalStaking * price
+dailyTVL[, crowdloanTVL := 0]
+dailyTVL[, LPTokenStakingTVL := 0]
+if (tolower(network) == "acala") dailyTVL[, lcdotTVL := 0]
+
+for (i in 1:nrow(dailyTVL)) {
+  py_run_string("block_id = " %+% dailyTVL$Block[i])
+  if (tolower(network) == "karura") {
+    tmp = py$getTotalIssuanceKSM()
+  } else {
+    tmp = py$getTotalIssuanceDOT()
+    dailyTVL$lcdotTVL[i] <- tmp[4]
+  }
+  dailyTVL$bridgeTVL[i] <- tmp[1]
+  dailyTVL$liquidStakingTVL[i] <- tmp[2]
+  dailyTVL$crowdloanTVL[i] <- tmp[3]
+  
+  # LPTokenStakingTVL 
+  rewards1 <- py$getRewards()
+  rewards <- as.data.table(rewards1)
+  # sort(unique(c(rewards$pair0, rewards$pair1)))
+  rewards[, pair0 := fixToken(pair0)]
+  rewards[, pair1 := fixToken(pair1)]
+  rewards <- merge(rewards, tokens, by.x = 'pair0', by.y="Token")
+  setnames(rewards, "decimals", "decimals0")
+  rewards[, Name := NULL]
+  rewards <- merge(rewards, tokens, by.x = 'pair1', by.y="Token")
+  setnames(rewards, "decimals", "decimals1")
+  rewards[, Name := NULL]
+  rewards[, decimals0 := as.numeric(decimals0)]
+  rewards[, decimals1 := as.numeric(decimals1)]
+  rewards[, lpDecimals := 12]
+  rewards[pair0=='DOT' & pair1=='LCDOT', lpDecimals := 10]
+  rewards[, lp := as.numeric(lp) / 10**lpDecimals]
+  rewards[, leg0 := as.numeric(leg0) / 10**decimals0]
+  rewards[, leg1 := as.numeric(leg1) / 10**decimals1]
+  
+  price = py$getOraclePrices() %>%
+    as.data.table
+  price[, token := fixToken(token)]
+  
+  rewards <- merge(rewards, price, by.x = "pair0", by.y="token", all.x = TRUE)
+  setnames(rewards, "price", "price0")
+  rewards <- merge(rewards, price, by.x = "pair1", by.y="token", all.x = TRUE)
+  setnames(rewards, "price", "price1")
+  rewards[pair0 %in% c('KUSD', "AUSD"), price0 := 1]
+  rewards[pair1 %in% c('KUSD', "AUSD"), price1 := 1]
+  rewards[, tvl := leg0 * price0 + leg1 * price1]
+  rewards[is.na(tvl), tvl := (leg0 * price0) * 2]
+  rewards[is.na(tvl), tvl := (leg1 * price1) * 2]
+  rewards[, lpPrice := tvl / lp]  
+  dailyTVL$LPTokenStakingTVL[i] <- sum(rewards$tvl, na.rm = TRUE)
+
+}
+
+
+
+# stableCoinTvl
+# const stableCoinTVL = useTotalLocked(); = api.query.loans?.totalPositions
+collateral <- getLoansDailyCollateral_acala_loan(network, window, staging = FALSE) %>%
+  setorder(Date, collateral.id)
+stableCoinTvl <- collateral[, sum(depositVolumeUSD), by = Date] %>%
+  setnames("V1", "stableCoinTVL")
+dailyTVL <- merge(dailyTVL, stableCoinTvl, by = "Date", all.x = TRUE)
+
+# If monthly, remove these fields
+# try(dailyTVL[, M := NULL])
+# try(dailyTVL[, maxDate := NULL])
+
+# Make columns numeric
+for (col in names(dailyTVL)[-1]) set(dailyTVL, j=col, value=as.numeric(dailyTVL[[col]])) 
+if (tolower(network) == "acala") {
+  dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + lcdotTVL + stableCoinTVL]
+} else {
+  dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + stableCoinTVL]
+}
+
+```
+
+# `r network` {.tabset}
+
+Row
+----
+
+### Overall Total Value Locked (TVL)
+
+* The Overall TVL in the table below does not includes the Crowdloan TVL, which also seems to be the case on the stats.`r network`.network page.
+
+```{r k_tvl}
+
+knitr::kable(dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+```
+
+Row
+----
+
+### Components of Total Value Locked
+
+```{r k_plot1}
+
+if (tolower(network) == "acala") {
+  dat <- melt(data = dailyTVL[, .(Date, dexTVL, LPTokenStakingTVL, bridgeTVL, liquidStakingTVL, lcdotTVL, stableCoinTVL)], 
+            id.vars = "Date",
+            value.name = "TVL")
+  cols <- c('dexTVL', 'LPTokenStakingTVL', 'bridgeTVL', 'liquidStakingTVL', 'LCDOTTVL', 'stableCoinTVL')
+} else {
+  dat <- melt(data = dailyTVL[, .(Date, dexTVL, LPTokenStakingTVL, bridgeTVL, liquidStakingTVL, stableCoinTVL)], 
+            id.vars = "Date",
+            value.name = "TVL")
+  cols <- c('dexTVL', 'LPTokenStakingTVL', 'bridgeTVL', 'liquidStakingTVL', 'stableCoinTVL')
+  
+}
+dat[, TVL := TVL / 1e6]
+ 
+# Stacked
+ggplot(dat, aes(fill=variable, y=TVL, x=Date)) + 
+    geom_bar(position="stack", stat="identity") +
+    ggtitle(label="Components of Total Value Locked") + 
+    ylab("Totval Value Locked (in millions USD)")
+
+```
+
+
+Row
+----
+
+### Sources
+
+Please click on the *Source Code* link at the top of the document to see the full source code.  Here is a summary:
+
+#### dexTVL 
+
+- sum of tvlUSD from the xx function in the [subscanr](https://github.com/rogerjbos/subscanr) package for R.  You can also use the [Karura-dex](https://explorer.subquery.network/subquery/AcalaNetwork/karura-dex) project hosted on Subquery Network with this query:
+```
+{ 
+  dailyPools { 
+    nodes { 
+      timestamp token0 {id} token1 {id} feeRateUSD dailyTradeVolumeUSD totalTVL txCount updateAtBlock {id}  
+    } 
+  } 
+}
+```
+
+#### LPTokenStakingTVL
+- ACA (or KAR) obtained from the [py-substrate-interface](https://github.com/polkascan/py-substrate-interface) using function *substrate.query(module='Rewards',storage_function='PoolInfos', block_hash = hash)*
+- mulitplied by ACA (or KAR) price for the specific block number
+
+#### BridgeTVL
+- KSM (or DOT) obtained from the [py-substrate-interface](https://github.com/polkascan/py-substrate-interface) using function *substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': 'KSM'}], block_hash = hash)*
+- LKSM (or LDOT) obtained from function *substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': 'LKSM'}], block_hash = hash)*
+- both mulitplied by KSM (or DOT) price for the specific block number
+
+#### liquidStakingTVL
+- KSM (or DOT) obtained from the [py-substrate-interface](https://github.com/polkascan/py-substrate-interface) using function *substrate.query(module='Homa',storage_function='TotalStakingBonded', block_hash = hash)*
+- mulitplied by KSM (or DOT) price for the specific block number
+
+#### lcdotTVL (Acala only)
+- LCDOT obtained from the [py-substrate-interface](https://github.com/polkascan/py-substrate-interface) using function *substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'LiquidCrowdloan': 13}], block_hash = hash)*
+- mulitplied by DOT price for the specific block number
+
+#### stableCoinTVL
+- sum of depositVolumeUSD from the *getLoansDailyCollateral_acala_loan* function in the [subscanr](https://github.com/rogerjbos/subscanr) package for R.  You can also use the [Karura-loan]https://explorer.subquery.network/subquery/AcalaNetwork/karura-loan) project hosted on Subquery Network with this query:
+```
+{ 
+  dailyCollaterals { 
+    nodes { 
+      collateral {id} depositAmount debitAmount depositVolumeUSD debitVolumeUSD
+      depositChangedUSD debitChangedUSD debitExchangeRate timestamp txCount 
+    } 
+  } 
+}
+```

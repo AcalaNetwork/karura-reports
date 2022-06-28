@@ -69,9 +69,9 @@ swaps <- getSwaps_acala_dex(network, window)
 # swaps[volumeUSDFloat < 0]
 # swaps[volumeUSDFloat < 0, id]
 
-swaps <- merge(swaps, subscanr::tokens, by.x='token0', by.y='Token', allow.cartesian=TRUE) %>% setnames("decimals","decimals0")
+swaps <- merge(swaps, subscanr::tokens, by.x='token0', by.y='Token') %>% setnames("decimals","decimals0")
 swaps[, Name := NULL]
-swaps <- merge(swaps, subscanr::tokens, by.x='token1', by.y='Token', allow.cartesian=TRUE) %>% setnames("decimals","decimals1")
+swaps <- merge(swaps, subscanr::tokens, by.x='token1', by.y='Token') %>% setnames("decimals","decimals1")
 swaps[, Name := NULL]
 
 swaps[, adj0 := as.numeric(substr(as.character(1e20),1, as.numeric(decimals0) + 1))]
