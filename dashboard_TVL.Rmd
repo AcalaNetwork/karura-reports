@@ -41,8 +41,8 @@ x <- GraphqlClient$new()
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
-# window = params$window
-window <- today() - as.Date("2021-12-31") + 1
+window = params$window
+# window <- today() - as.Date("2021-12-31") + 1
 network = params$network
 
 # Liquidity Pool TVL ($3.72M) = totalDefiTvl = totalDexTvl + totalDexLockedTvl + homaLocked + stableCoinTvl
@@ -287,6 +287,9 @@ if (tolower(network) == "acala") {
   dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + stableCoinTVL]
 }
 
+
+
+
 fwrite(x = dailyTVL, file = network %+% "_TVL.csv")
 
 ```
@@ -340,7 +343,7 @@ ggplot(dat, aes(fill=variable, y=TVL, x=Date)) +
 Row
 ----
 
-### Sources
+### Sources and Notes
 
 Please click on the *Source Code* link at the top of the document to see the full source code.  Here is a summary:
 
