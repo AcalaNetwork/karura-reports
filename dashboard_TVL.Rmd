@@ -300,20 +300,6 @@ dailyTVL <- comb
 Row
 ----
 
-### Overall Total Value Locked (TVL)
-
-* The Overall TVL in the table below does not includes the Crowdloan TVL, which also seems to be the case on the stats.`r network`.network page.
-
-```{r k_tvl}
-
-knitr::kable(dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
-  kable_styling()
-
-```
-
-Row
-----
-
 ### Components of Total Value Locked
 
 ```{r k_plot1}
@@ -339,6 +325,21 @@ ggplot(dat, aes(fill=variable, y=TVL, x=Date)) +
     ylab("Totval Value Locked (in millions USD)")
 
 ```
+
+Row
+----
+
+### Overall Total Value Locked (TVL)
+
+* The Overall TVL in the table below does not includes the Crowdloan TVL, which also seems to be the case on the stats.`r network`.network page.
+
+```{r k_tvl}
+
+knitr::kable(dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+```
+
 
 
 Row
