@@ -8,7 +8,7 @@ output:
     source_code: embed
 params:
   network: Karura
-  window: 120
+  window: 7
   
 ---
 
@@ -27,7 +27,6 @@ knitr::opts_chunk$set(
 )
 
 library(ggplot2)
-# library(dygraphs)
 library(kableExtra)
 library(formattable)
 library(lubridate)
@@ -41,8 +40,8 @@ x <- GraphqlClient$new()
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
-# window = params$window
-window <- today() - as.Date("2021-12-31") + 1
+window = params$window
+# window <- today() - as.Date("2021-12-31") + 1
 network = params$network
 
 # Liquidity Pool TVL ($3.72M) = totalDefiTvl = totalDexTvl + totalDexLockedTvl + homaLocked + stableCoinTvl
@@ -276,8 +275,8 @@ stableCoinTvl <- collateral[, sum(depositVolumeUSD), by = Date] %>%
 dailyTVL <- merge(dailyTVL, stableCoinTvl, by = "Date", all.x = TRUE)
 
 # If monthly, remove these fields
-# try(dailyTVL[, M := NULL])
-# try(dailyTVL[, maxDate := NULL])
+try(dailyTVL[, M := NULL])
+try(dailyTVL[, maxDate := NULL])
 
 # Make columns numeric
 for (col in names(dailyTVL)[-1]) set(dailyTVL, j=col, value=as.numeric(dailyTVL[[col]])) 
@@ -287,23 +286,17 @@ if (tolower(network) == "acala") {
   dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + stableCoinTVL]
 }
 
+# merge history
+history <- fread(network %+% "_TVL.csv")
+history[, Date := as.Date(Date)]
+mindate <- min(dailyTVL$Date)
+dailyTVL <- rbind(history[Date < mindate], dailyTVL, use.names = TRUE)
+fwrite(dailyTVL, file = network %+% "_TVL.csv")
+
+
 ```
 
 # `r network` {.tabset}
-
-Row
-----
-
-### Overall Total Value Locked (TVL)
-
-* The Overall TVL in the table below does not includes the Crowdloan TVL, which also seems to be the case on the stats.`r network`.network page.
-
-```{r k_tvl}
-
-knitr::kable(dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
-  kable_styling()
-
-```
 
 Row
 ----
@@ -334,11 +327,24 @@ ggplot(dat, aes(fill=variable, y=TVL, x=Date)) +
 
 ```
 
+Row
+----
+
+### Overall Total Value Locked (TVL)
+
+* *The Overall TVL in the table below does not includes the Crowdloan TVL, which also seems to be the case on the http://stats.`r tolower(network)`.network site.*
+
+```{r k_tvl}
+
+knitr::kable(dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+```
 
 Row
 ----
 
-### Sources
+### Sources and Notes
 
 Please click on the *Source Code* link at the top of the document to see the full source code.  Here is a summary:
 
