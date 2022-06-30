@@ -41,11 +41,15 @@ x <- GraphqlClient$new()
 window <- today() - as.Date("2021-12-31") + 1
 
 # Liquidity Pool TVL ($3.72M) = totalDefiTvl = totalDexTvl + totalDexLockedTvl + homaLocked + stableCoinTvl
-dex <- getDailyPools_acala_dex("karura", window) %>%
+kdex <- getDailyPools_acala_dex("karura", window) %>%
   setorder(Date, pair)
-
-dailyTVL <- dex[, max(updateAtBlock.id), by = Date] %>%
-  setnames("V1", "Block")
+adex <- getDailyPools_acala_dex("acala", window) %>%
+  setorder(Date, pair)
+adaily <- adex[, max(updateAtBlock.id), by = Date] %>%
+  setnames("V1", "blockAcala")
+kdaily <- kdex[, max(updateAtBlock.id), by = Date] %>%
+  setnames("V1", "blockKarura")
+dailyTVL <- merge(adaily, kdaily, by = 'Date')
 
 library(reticulate)
 # use_python("/opt/homebrew/bin/python3.9")
@@ -63,7 +67,7 @@ def getTotalIssuance(network):
     else:
         url = 'wss://acala-rpc-0.aca-api.network'
         token = 'AUSD'
-        
+
     substrate = SubstrateInterface(url)
     data = []
     for block_id in r.blocks:
@@ -81,12 +85,20 @@ def getTotalIssuance(network):
 
 ```{r tvl, cache = TRUE, include=FALSE}
 
-  blocks <- dailyTVL$Block
+  blocks = as.character(dailyTVL$blockKarura)
   kusd = py$getTotalIssuance("Karura")
+  
+  blocks = as.character(dailyTVL$blockAcala)
   ausd = py$getTotalIssuance("Acala")
-  dailyTVL <- merge(dailyTVL, kusd, by = "Block") %>%
+
+  dailyTVL[, blockAcala  := as.numeric(blockAcala)]  
+  dailyTVL[, blockKarura := as.numeric(blockKarura)]  
+  kusd$Block <- as.numeric(kusd$Block)
+  ausd$Block <- as.numeric(ausd$Block)
+  
+  dailyTVL <- merge(dailyTVL, kusd, by.x = "blockKarura", by.y = "Block") %>%
     setnames("aUSD", "aUSD_Karura")
-  dailyTVL <- merge(dailyTVL, ausd, by = "Block") %>%
+  dailyTVL <- merge(dailyTVL, ausd, by.x = "blockAcala", by.y = "Block") %>%
     setnames("aUSD", "aUSD_Acala")
   dailyTVL[, aUSD_Total := aUSD_Karura + aUSD_Acala]
   
