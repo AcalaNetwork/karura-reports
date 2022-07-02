@@ -7,7 +7,6 @@ output:
     social: menu
     source_code: embed
 params:
-  network: Karura
   window: 7
   
 ---
@@ -42,13 +41,17 @@ x <- GraphqlClient$new()
 
 window = params$window
 # window <- today() - as.Date("2021-12-31") + 1
-network = params$network
+# network = params$network
 
 # Liquidity Pool TVL ($3.72M) = totalDefiTvl = totalDexTvl + totalDexLockedTvl + homaLocked + stableCoinTvl
-dex <- getDailyPools_acala_dex(network, window) %>%
+a_dex <- getDailyPools_acala_dex('acala', window) %>%
+  setorder(Date, pair)
+k_dex <- getDailyPools_acala_dex('karura', window) %>%
   setorder(Date, pair)
 
-dailyTVL <- dex[, .(max(updateAtBlock.id), sum(tvlUSD)), by = Date] %>%
+a_dailyTVL <- a_dex[, .(max(updateAtBlock.id), sum(tvlUSD)), by = Date] %>%
+  setnames(c("V1","V2"), c("Block","dexTVL"))
+k_dailyTVL <- k_dex[, .(max(updateAtBlock.id), sum(tvlUSD)), by = Date] %>%
   setnames(c("V1","V2"), c("Block","dexTVL"))
 
 library(reticulate)
@@ -199,6 +202,7 @@ def getTotalIssuanceDOT():
 
 ```{r tvl, cache = TRUE, include=FALSE}
 
+network = 'acala'
 # dailyTVL[, M := month(Date) %+% year(Date)]
 # dailyTVL[, maxDate := max(Date), by = M]
 # dailyTVL <- dailyTVL[Date == maxDate]
@@ -206,29 +210,30 @@ def getTotalIssuanceDOT():
 # LP Token Staking TVL = totalDexTvl = useTotalDexPoolTVL()
 # totalDexLockedTvl = useTotalStaking() = api.query.dex?.liquidityPool
 # KSM Bridge TVL = totalIssuanceKSM = useTotalIssuance('KSM') = api.query.tokens?.totalIssuance
-dailyTVL[, bridgeTVL := 0]
+a_dailyTVL[, bridgeTVL := 0]
 # Liquid KSM TVL = totalLocked in Homa = useState()
-dailyTVL[, liquidStakingTVL := 0]
+a_dailyTVL[, liquidStakingTVL := 0]
 # homeLocked = totalStaking * price
-dailyTVL[, crowdloanTVL := 0]
-dailyTVL[, LPTokenStakingTVL := 0]
-if (tolower(network) == "acala") dailyTVL[, lcdotTVL := 0]
+a_dailyTVL[, crowdloanTVL := 0]
+a_dailyTVL[, LPTokenStakingTVL := 0]
+a_dailyTVL[, lcdotTVL := 0]
 
-for (i in 1:nrow(dailyTVL)) {
-  py_run_string("block_id = " %+% dailyTVL$Block[i])
+for (i in 1:nrow(a_dailyTVL)) {
+  py_run_string("block_id = " %+% a_dailyTVL$Block[i])
   if (tolower(network) == "karura") {
     tmp = py$getTotalIssuanceKSM()
   } else {
     tmp = py$getTotalIssuanceDOT()
-    dailyTVL$lcdotTVL[i] <- tmp[4]
+    k_dailyTVL$lcdotTVL[i] <- tmp[4]
   }
-  dailyTVL$bridgeTVL[i] <- tmp[1]
-  dailyTVL$liquidStakingTVL[i] <- tmp[2]
-  dailyTVL$crowdloanTVL[i] <- tmp[3]
+  a_dailyTVL$lcdotTVL[i] <- tmp[4]
+  a_dailyTVL$bridgeTVL[i] <- tmp[1]
+  a_dailyTVL$liquidStakingTVL[i] <- tmp[2]
+  a_dailyTVL$crowdloanTVL[i] <- tmp[3]
   
   # LPTokenStakingTVL 
-  rewards1 <- py$getRewards()
-  rewards <- as.data.table(rewards1)
+  rewards <- py$getRewards() %>%
+    as.data.table
   # sort(unique(c(rewards$pair0, rewards$pair1)))
   rewards[, pair0 := fixToken(pair0)]
   rewards[, pair1 := fixToken(pair1)]
@@ -260,68 +265,152 @@ for (i in 1:nrow(dailyTVL)) {
   rewards[is.na(tvl), tvl := (leg0 * price0) * 2]
   rewards[is.na(tvl), tvl := (leg1 * price1) * 2]
   rewards[, lpPrice := tvl / lp]  
-  dailyTVL$LPTokenStakingTVL[i] <- sum(rewards$tvl, na.rm = TRUE)
+  a_dailyTVL$LPTokenStakingTVL[i] <- sum(rewards$tvl, na.rm = TRUE)
 
 }
 
-
-
 # stableCoinTvl
 # const stableCoinTVL = useTotalLocked(); = api.query.loans?.totalPositions
-collateral <- getLoansDailyCollateral_acala_loan(network, window, staging = FALSE) %>%
+a_collateral <- getLoansDailyCollateral_acala_loan(network, window, staging = FALSE) %>%
   setorder(Date, collateral.id)
-stableCoinTvl <- collateral[, sum(depositVolumeUSD), by = Date] %>%
+a_stableCoinTvl <- a_collateral[, sum(depositVolumeUSD), by = Date] %>%
   setnames("V1", "stableCoinTVL")
-dailyTVL <- merge(dailyTVL, stableCoinTvl, by = "Date", all.x = TRUE)
+a_dailyTVL <- merge(a_dailyTVL, a_stableCoinTvl, by = "Date", all.x = TRUE)
 
 # If monthly, remove these fields
 # try(dailyTVL[, M := NULL])
 # try(dailyTVL[, maxDate := NULL])
 
 # Make columns numeric
-for (col in names(dailyTVL)[-1]) set(dailyTVL, j=col, value=as.numeric(dailyTVL[[col]])) 
-if (tolower(network) == "acala") {
-  dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + lcdotTVL + stableCoinTVL]
-} else {
-  dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + stableCoinTVL]
+for (col in names(a_dailyTVL)[-1]) set(a_dailyTVL, j=col, value=as.numeric(a_dailyTVL[[col]])) 
+a_dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + lcdotTVL + stableCoinTVL]
+
+history <- fread(file = "Acala_TVL.csv")
+history[, Date := as.Date(Date)]
+minDate <- min(a_dailyTVL$Date)
+comb <- rbind(history[Date < minDate], a_dailyTVL)
+fwrite(x = comb, file = "Acala_TVL.csv")
+a_dailyTVL <- comb
+
+
+
+## Karura
+network <- 'Karura'
+# dailyTVL[, M := month(Date) %+% year(Date)]
+# dailyTVL[, maxDate := max(Date), by = M]
+# dailyTVL <- dailyTVL[Date == maxDate]
+
+# LP Token Staking TVL = totalDexTvl = useTotalDexPoolTVL()
+# totalDexLockedTvl = useTotalStaking() = api.query.dex?.liquidityPool
+# KSM Bridge TVL = totalIssuanceKSM = useTotalIssuance('KSM') = api.query.tokens?.totalIssuance
+k_dailyTVL[, bridgeTVL := 0]
+# Liquid KSM TVL = totalLocked in Homa = useState()
+k_dailyTVL[, liquidStakingTVL := 0]
+# homeLocked = totalStaking * price
+k_dailyTVL[, crowdloanTVL := 0]
+k_dailyTVL[, LPTokenStakingTVL := 0]
+# k_dailyTVL[, lcdotTVL := 0]
+
+for (i in 1:nrow(k_dailyTVL)) {
+  py_run_string("block_id = " %+% k_dailyTVL$Block[i])
+  if (tolower(network) == "karura") {
+    tmp = py$getTotalIssuanceKSM()
+  } else {
+    tmp = py$getTotalIssuanceDOT()
+    k_dailyTVL$lcdotTVL[i] <- tmp[4]
+  }
+  k_dailyTVL$bridgeTVL[i] <- tmp[1]
+  k_dailyTVL$liquidStakingTVL[i] <- tmp[2]
+  k_dailyTVL$crowdloanTVL[i] <- tmp[3]
+  
+  # LPTokenStakingTVL 
+  rewards <- py$getRewards() %>%
+    as.data.table
+  # sort(unique(c(rewards$pair0, rewards$pair1)))
+  rewards[, pair0 := fixToken(pair0)]
+  rewards[, pair1 := fixToken(pair1)]
+  rewards <- merge(rewards, tokens, by.x = 'pair0', by.y="Token")
+  setnames(rewards, "decimals", "decimals0")
+  rewards[, Name := NULL]
+  rewards <- merge(rewards, tokens, by.x = 'pair1', by.y="Token")
+  setnames(rewards, "decimals", "decimals1")
+  rewards[, Name := NULL]
+  rewards[, decimals0 := as.numeric(decimals0)]
+  rewards[, decimals1 := as.numeric(decimals1)]
+  rewards[, lpDecimals := 12]
+  rewards[pair0=='DOT' & pair1=='LCDOT', lpDecimals := 10]
+  rewards[, lp := as.numeric(lp) / 10**lpDecimals]
+  rewards[, leg0 := as.numeric(leg0) / 10**decimals0]
+  rewards[, leg1 := as.numeric(leg1) / 10**decimals1]
+  
+  price = py$getOraclePrices() %>%
+    as.data.table
+  price[, token := fixToken(token)]
+  
+  rewards <- merge(rewards, price, by.x = "pair0", by.y="token", all.x = TRUE)
+  setnames(rewards, "price", "price0")
+  rewards <- merge(rewards, price, by.x = "pair1", by.y="token", all.x = TRUE)
+  setnames(rewards, "price", "price1")
+  rewards[pair0 %in% c('KUSD', "AUSD"), price0 := 1]
+  rewards[pair1 %in% c('KUSD', "AUSD"), price1 := 1]
+  rewards[, tvl := leg0 * price0 + leg1 * price1]
+  rewards[is.na(tvl), tvl := (leg0 * price0) * 2]
+  rewards[is.na(tvl), tvl := (leg1 * price1) * 2]
+  rewards[, lpPrice := tvl / lp]  
+  k_dailyTVL$LPTokenStakingTVL[i] <- sum(rewards$tvl, na.rm = TRUE)
+
 }
 
-history <- fread(file = network %+% "_TVL.csv")
+# stableCoinTvl
+# const stableCoinTVL = useTotalLocked(); = api.query.loans?.totalPositions
+k_collateral <- getLoansDailyCollateral_acala_loan(network, window, staging = FALSE) %>%
+  setorder(Date, collateral.id)
+k_stableCoinTvl <- k_collateral[, sum(depositVolumeUSD), by = Date] %>%
+  setnames("V1", "stableCoinTVL")
+k_dailyTVL <- merge(k_dailyTVL, a_stableCoinTvl, by = "Date", all.x = TRUE)
+
+# If monthly, remove these fields
+# try(dailyTVL[, M := NULL])
+# try(dailyTVL[, maxDate := NULL])
+
+# Make columns numeric
+for (col in names(k_dailyTVL)[-1]) set(k_dailyTVL, j=col, value=as.numeric(k_dailyTVL[[col]])) 
+if (tolower(network) == "acala") {
+  k_dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + lcdotTVL + stableCoinTVL]
+} else {
+  k_dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + stableCoinTVL]
+}
+
+k_dailyTVL[, lcdotTVL := NULL]
+
+history <- fread(file = "Karura_TVL.csv")
 history[, Date := as.Date(Date)]
-minDate <- min(dailyTVL$Date)
-comb <- rbind(history[Date < minDate], dailyTVL)
-fwrite(x = comb, file = network %+% "_TVL.csv")
-dailyTVL <- comb
+minDate <- min(k_dailyTVL$Date)
+comb <- rbind(history[Date < minDate], k_dailyTVL)
+fwrite(x = comb, file = "Karura_TVL.csv")
+k_dailyTVL <- comb
 
 ```
 
-# `r network` {.tabset}
+# Acala {.tabset}
 
 Row
 ----
 
-### Components of Total Value Locked
+### Components of Total Value Locked: Acala
 
-```{r k_plot1}
+```{r a_plot1}
 
-if (tolower(network) == "acala") {
-  dat <- melt(data = dailyTVL[, .(Date, dexTVL, LPTokenStakingTVL, bridgeTVL, liquidStakingTVL, lcdotTVL, stableCoinTVL)], 
+a_dat <- melt(data = a_dailyTVL[, .(Date, dexTVL, LPTokenStakingTVL, bridgeTVL, liquidStakingTVL, lcdotTVL, stableCoinTVL)], 
             id.vars = "Date",
             value.name = "TVL")
-  cols <- c('dexTVL', 'LPTokenStakingTVL', 'bridgeTVL', 'liquidStakingTVL', 'LCDOTTVL', 'stableCoinTVL')
-} else {
-  dat <- melt(data = dailyTVL[, .(Date, dexTVL, LPTokenStakingTVL, bridgeTVL, liquidStakingTVL, stableCoinTVL)], 
-            id.vars = "Date",
-            value.name = "TVL")
-  cols <- c('dexTVL', 'LPTokenStakingTVL', 'bridgeTVL', 'liquidStakingTVL', 'stableCoinTVL')
-  
-}
-dat[, TVL := TVL / 1e6]
+cols <- c('dexTVL', 'LPTokenStakingTVL', 'bridgeTVL', 'liquidStakingTVL', 'LCDOTTVL', 'stableCoinTVL')
+a_dat[, TVL := TVL / 1e6]
  
 # Stacked
-ggplot(dat, aes(fill=variable, y=TVL, x=Date)) + 
+ggplot(a_dat, aes(fill=variable, y=TVL, x=Date)) + 
     geom_bar(position="stack", stat="identity") +
-    ggtitle(label="Components of Total Value Locked") + 
+    ggtitle(label="Components of Total Value Locked for Acala") + 
     ylab("Totval Value Locked (in millions USD)")
 
 ```
@@ -329,18 +418,53 @@ ggplot(dat, aes(fill=variable, y=TVL, x=Date)) +
 Row
 ----
 
-### Overall Total Value Locked (TVL)
+### Overall Total Value Locked (TVL) for Acala
 
-* The Overall TVL in the table below does not includes the Crowdloan TVL, which also seems to be the case on the stats.`r network`.network page.
+* The Overall TVL in the table below does not includes the Crowdloan TVL, which also seems to be the case on the https://stats.acala.network page.
 
-```{r k_tvl}
+```{r a_tvl}
 
-knitr::kable(dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(a_dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
 
+# Karura {.tabset}
 
+Row
+----
+
+### Components of Total Value Locked: Karura
+
+```{r k_plot1}
+
+k_dat <- melt(data = k_dailyTVL[, .(Date, dexTVL, LPTokenStakingTVL, bridgeTVL, liquidStakingTVL, stableCoinTVL)], 
+            id.vars = "Date",
+            value.name = "TVL")
+cols <- c('dexTVL', 'LPTokenStakingTVL', 'bridgeTVL', 'liquidStakingTVL', 'stableCoinTVL')
+k_dat[, TVL := TVL / 1e6]
+ 
+# Stacked
+ggplot(k_dat, aes(fill=variable, y=TVL, x=Date)) + 
+    geom_bar(position="stack", stat="identity") +
+    ggtitle(label="Components of Total Value Locked for Karura") + 
+    ylab("Totval Value Locked (in millions USD)")
+
+```
+
+Row
+----
+
+### Overall Total Value Locked (TVL) for Karura
+
+* The Overall TVL in the table below does not includes the Crowdloan TVL, which also seems to be the case on the https://stats.karura.network page.
+
+```{r k_tvl}
+
+knitr::kable(a_dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
+  kable_styling()
+
+```
 
 Row
 ----
