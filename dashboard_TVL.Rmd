@@ -190,7 +190,10 @@ def getTotalIssuanceDOT():
     def getDecimals(token):
       return int(decimals[decimals['id'] == token]['decimals'])        
   
-    bridge = (float(dot.value / 10**10) + float(ldot.value / 10**10 / ratio)) * price
+    if block_id < 497258:
+      bridge = (float(dot.value / 10**10 - 198000000) + float(ldot.value / 10**10 / ratio)) * price
+    else:
+      bridge = (float(dot.value / 10**10) + float(ldot.value / 10**10 / ratio)) * price
     liquidDOT = float(amount / 10**10) * price
     lcDOT = float(lcdot.value / 10**10) * price
     crowdloanTVL = (325159802323576263 / 10**10) * price
