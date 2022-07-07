@@ -227,13 +227,12 @@ for (i in 1:nrow(a_dailyTVL)) {
     tmp = py$getTotalIssuanceKSM()
   } else {
     tmp = py$getTotalIssuanceDOT()
-    k_dailyTVL$lcdotTVL[i] <- tmp[4]
+    a_dailyTVL$lcdotTVL[i] <- tmp[4]
   }
-  a_dailyTVL$lcdotTVL[i] <- tmp[4]
   a_dailyTVL$bridgeTVL[i] <- tmp[1]
   a_dailyTVL$liquidStakingTVL[i] <- tmp[2]
   a_dailyTVL$crowdloanTVL[i] <- tmp[3]
-  
+
   # LPTokenStakingTVL 
   rewards <- py$getRewards() %>%
     as.data.table
@@ -320,7 +319,7 @@ for (i in 1:nrow(k_dailyTVL)) {
     tmp = py$getTotalIssuanceKSM()
   } else {
     tmp = py$getTotalIssuanceDOT()
-    k_dailyTVL$lcdotTVL[i] <- tmp[4]
+    a_dailyTVL$lcdotTVL[i] <- tmp[4]
   }
   k_dailyTVL$bridgeTVL[i] <- tmp[1]
   k_dailyTVL$liquidStakingTVL[i] <- tmp[2]
@@ -370,7 +369,7 @@ k_collateral <- getLoansDailyCollateral_acala_loan(network, window, staging = FA
   setorder(Date, collateral.id)
 k_stableCoinTvl <- k_collateral[, sum(depositVolumeUSD), by = Date] %>%
   setnames("V1", "stableCoinTVL")
-k_dailyTVL <- merge(k_dailyTVL, a_stableCoinTvl, by = "Date", all.x = TRUE)
+k_dailyTVL <- merge(k_dailyTVL, k_stableCoinTvl, by = "Date", all.x = TRUE)
 
 # If monthly, remove these fields
 # try(dailyTVL[, M := NULL])
@@ -384,7 +383,7 @@ if (tolower(network) == "acala") {
   k_dailyTVL[, OverallTVL := dexTVL + LPTokenStakingTVL + bridgeTVL + liquidStakingTVL + stableCoinTVL]
 }
 
-k_dailyTVL[, lcdotTVL := NULL]
+# k_dailyTVL[, lcdotTVL := NULL]
 
 history <- fread(file = "Karura_TVL.csv")
 history[, Date := as.Date(Date)]
@@ -464,7 +463,7 @@ Row
 
 ```{r k_tvl}
 
-knitr::kable(a_dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
+knitr::kable(k_dailyTVL, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
 ```
