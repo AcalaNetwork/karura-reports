@@ -7,7 +7,7 @@ output:
     social: menu
     source_code: embed
 params:
-  window: 14
+  window: 7
   
 ---
 
@@ -39,8 +39,8 @@ x <- GraphqlClient$new()
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
-# window = params$window
-window <- today() - as.Date("2021-12-31") + 1
+window = params$window
+# window <- today() - as.Date("2021-12-31") + 1
 # network = params$network
 
 # Liquidity Pool TVL ($3.72M) = totalDefiTvl = totalDexTvl + totalDexLockedTvl + homaLocked + stableCoinTvl
