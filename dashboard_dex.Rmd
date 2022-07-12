@@ -8,7 +8,7 @@ output:
     source_code: embed
 params:
   network: Karura
-  window: 4
+  window: 14
 ---
 
 ```{css custom1, echo=FALSE}
