@@ -61,13 +61,8 @@ liq <- liq[, .(.N, sum(volumeUSD)), by = .(date, type)]
 setnames(liq, c("date","N","V2"), c("Date","Observations","volumeUSD"))
 liq[type == 'removeLiquidity', volumeUSD := -volumeUSD]
 
-# swaps2 <- getSwapsByDay(swap_endpoint, window)
 swaps2 <- getDailyPools_acala_dex(network, window)
 swaps <- getSwaps_acala_dex(network, window)
-# swaps <- getSwaps(official_endpoint, window)
-# swaps[, volumeUSDFloat := as.numeric(volumeUSD)]
-# swaps[volumeUSDFloat < 0]
-# swaps[volumeUSDFloat < 0, id]
 
 swaps <- merge(swaps, subscanr::tokens, by.x='token0', by.y='Token') %>% setnames("decimals","decimals0")
 swaps[, Name := NULL]
@@ -126,7 +121,7 @@ pairs <- pairs[order(V1, decreasing = TRUE)] %>%
   setnames(c("Pair", "Observations"))
 
 
-tvl <- swaps2[date == max(date)]
+tvl <- swaps2[Date == max(Date)]
 stable_dex_pool_size <- tvl[grep("USD", tvl$pair), sum(abs(tvlUSD))]
 
 # Calculate measures for each pair

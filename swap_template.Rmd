@@ -29,12 +29,11 @@ pair <- params$pair
 
 if (pair == "ALL") {
   resx <- swaps[date >= max(swaps$date) - xdays]
-    tvl <- swaps2[, sum(tvlUSD), by = date] %>%
-      setnames(c("date","V1"), c("Date","tvlUSD"))
+    tvl <- swaps2[, sum(tvlUSD), by = Date] %>%
+      setnames("V1", "tvlUSD")
 } else {
   resx <- swaps[pair1==params$pair | pair2==params$pair | pair3==params$pair & date >= max(swaps$date) - xdays]
-    tvl <- swaps2[pair == params$pair, tvlUSD, by = date] %>% 
-      setnames("date","Date")
+    tvl <- swaps2[pair == params$pair, tvlUSD, by = Date]
 }
 
 # Helper function to concat
