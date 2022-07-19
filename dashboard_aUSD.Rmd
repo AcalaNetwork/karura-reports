@@ -102,6 +102,8 @@ def getTotalIssuance(network):
     setnames("aUSD", "aUSD_Acala")
   dailyTVL[, aUSD_Total := aUSD_Karura + aUSD_Acala]
   
+  fwrite(x = dailyTVL, file = "aUSD_Issuance.csv")
+
 ```
 
 # aUSD {.tabset}

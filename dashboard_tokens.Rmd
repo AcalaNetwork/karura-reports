@@ -79,7 +79,7 @@ kusama ={
     'Genshiro': 'wss://node.genshiro.io',
     'Heiko': 'wss://parallel-heiko.api.onfinality.io/public-ws',
     # 'Hanonycash': 'wss://rpc.hanonycash.com',
-    # 'HydraDX': 'wss://rpc-01.snakenet.hydradx.io',
+    'HydraDX': 'wss://rpc-01.snakenet.hydradx.io',
     'Integritee': 'wss://kusama.api.integritee.network',
     'Karura': 'wss://karura.polkawallet.io',
     'Khala': 'wss://khala-api.phala.network/ws',
@@ -88,7 +88,7 @@ kusama ={
     'Kpron': 'wss://kusama-kpron-rpc.apron.network/',
     'Kusama': 'wss://kusama.api.onfinality.io/public-ws',
     # 'Kulupu': 'wss://rpc.kulupu.corepaper.org/ws',
-    # 'Kusari': 'wss://ws.kusari.network',
+    'Kusari': 'wss://ws.kusari.network',
     'Litmus': 'wss://rpc.litmus-parachain.litentry.io',
     'LoomNetwork': 'wss://kusama.dappchains.com',
     'Mangata': 'wss://v4-prod-collator-01.mangatafinance.cloud',
@@ -101,7 +101,7 @@ kusama ={
     'Nodle': 'wss://main3.nodleprotocol.io',
     'Heiko': 'wss://heiko-rpc.parallel.fi',
     # 'Plasm': 'wss://rpc.plasmnet.io/',
-    # 'Polkadex': 'wss://mainnet.polkadex.trade',
+    'Polkadex': 'wss://mainnet.polkadex.trade',
     # 'Polymesh Mainnet': 'wss://mainnet-rpc.polymesh.network',
     'Picasso': 'wss://picasso-rpc.composable.finance',
     'Pichiu': 'wss://kusama.kylin-node.co.uk',
@@ -121,12 +121,38 @@ kusama ={
     # 'SORA': 'wss://ws.mof.sora.org',
     # 'Spanner': 'wss://wss.spannerprotocol.com',
     # 'SubGame': 'wss://mainnet.subgame.org/',
-    # 'Subsocial': 'wss://rpc.subsocial.network',
-    # 'Swapdex': 'wss://ws.swapdex.network',
+    'Subsocial': 'wss://rpc.subsocial.network',
+    'Swapdex': 'wss://ws.swapdex.network',
     # 'UniArts': 'wss://mainnet.uniarts.vip:9443',
     'Unorthodox': 'wss://rpc.kusama.standard.tech',
     # 'Westlake': 'wss://westlake.datahighway.com'
     'Zeitgeist': 'wss://rpc-0.zeitgeist.pm'}
+
+kusama_other ={
+    'Centrifuge Standalone [Archived]': 'wss://fullnode.centrifuge.io',
+    'Competitors Club': 'wss://node0.competitors.club/wss',
+    'Crown Sterling': 'wss://blockchain.crownsterling.io',
+    'Crust Network': 'wss://rpc.crust.network',
+    'Dock': 'wss://mainnet-node.dock.io',
+    'Edgeware': 'wss://mainnet.edgewa.re',
+    'Equilibrium': 'wss://node.equilibrium.io',
+    'Hanonycash': 'wss://rpc.hanonycash.com',
+    'HydraDX': 'wss://rpc-01.snakenet.hydradx.io',
+    'Kulupu': 'wss://rpc.kulupu.corepaper.org/ws',
+    'Kusari': 'wss://ws.kusari.network',
+    'MathChain': 'wss://mathchain-asia.maiziqianbao.net/ws',
+    'NFTMart': 'wss://mainnet.nftmart.io/rpc/ws',
+    'Plasm': 'wss://rpc.plasmnet.io/',
+    'Polkadex': 'wss://mainnet.polkadex.trade',
+    'Polymesh Mainnet': 'wss://mainnet-rpc.polymesh.network',
+    'RioChain': 'wss://node.v1.riochain.io',
+    'SORA': 'wss://ws.mof.sora.org',
+    'Spanner': 'wss://wss.spannerprotocol.com',
+    'SubGame': 'wss://mainnet.subgame.org/',
+    'Subsocial': 'wss://rpc.subsocial.network',
+    'Swapdex': 'wss://ws.swapdex.network',
+    'UniArts': 'wss://mainnet.uniarts.vip:9443',
+    'Westlake': 'wss://westlake.datahighway.com'}
 
 polkadot = {'Acala': 'wss://acala-rpc-0.aca-api.network',
             # 'Ares Odyssey': 'wss://wss.odyssey.aresprotocol.io',
@@ -149,7 +175,7 @@ polkadot = {'Acala': 'wss://acala-rpc-0.aca-api.network',
             'Moonbeam': 'wss://wss.api.moonbeam.network',
             'Nodle': 'wss://nodle-parachain.api.onfinality.io/public-ws',
             'Odyssey': 'wss://wss.odyssey.aresprotocol.io',
-            # 'OriginTrail Parachain': 'wss://parachain-rpc.origin-trail.network',
+            'OriginTrail Parachain': 'wss://parachain-rpc.origin-trail.network',
             'Parallel': 'wss://parallel.api.onfinality.io/public-ws',
             'Phala': 'wss://api.phala.network/ws',
             'Polkadex': 'wss://polkadex.api.onfinality.io/public-ws',
@@ -159,9 +185,21 @@ polkadot = {'Acala': 'wss://acala-rpc-0.aca-api.network',
             'Statemint': 'wss://statemint-rpc.polkadot.io',
             'Polkadot': 'wss://rpc.polkadot.io'}
 
+polkadot_other = {
+            'Ares Odyssey': 'wss://wss.odyssey.aresprotocol.io',
+            'Coinversation': 'wss://rpc.coinversation.io/',
+            'Litentry': 'wss://parachain.litentry.io',
+            'OriginTrail Parachain': 'wss://parachain-rpc.origin-trail.network',
+            'SubDAO': 'wss://parachain-rpc.subdao.org',
+            'SubGame Gamma': 'wss://gamma.subgame.org/'}
+
     
 wss_map = kusama | polkadot
 wss_map_df = pd.DataFrame(list(wss_map.items()),columns = ['Name','url'])
+
+wss_map_other = kusama_other | polkadot_other
+wss_map_other_df = pd.DataFrame(list(wss_map_other.items()),columns = ['Name','url'])
+
 
 def get_token_issuance(url):
     data = []
@@ -254,8 +292,9 @@ def get_homa_stakingLedger(url):
 
 
 today = date.today().strftime("%Y%m%d")
-fname = f"~/R_HOME/karura-reports/tokens_{today}.csv"
 
+# Production
+fname = f"~/R_HOME/karura-reports/tokens_{today}.csv"
 mode = "w"
 header = True
 for key in wss_map:
@@ -293,6 +332,48 @@ for key in wss_map:
         mode = "a"
         header = False
         del out, out4
+
+# Testing
+if False:
+  fname = f"~/R_HOME/karura-reports/tokens_testing_{today}.csv"
+  mode = "w"
+  header = True
+  for key in wss_map_other:
+      url = wss_map_other[key]
+      # url = 'wss://statemine-rpc.polkadot.io'
+      out1 = get_token_issuance(url)
+      if out1 != None and out1 != []:
+          out = pd.DataFrame(out1).merge(wss_map_other_df, on='url')
+          out['Time'] = pd.to_datetime(out['Time'],unit='ms').dt.date
+          out.to_csv(fname, mode = mode, index = False, header = header)
+          mode = "a"
+          header = False
+          del out, out1
+      out2 = get_balances_issuance(url)
+      if out2 != None and out2 != []:
+          out = pd.DataFrame(out2).merge(wss_map_other_df, on='url')
+          out['Time'] = pd.to_datetime(out['Time'],unit='ms').dt.date
+          out.to_csv(fname, mode = mode, index = False, header = header)
+          mode = "a"
+          header = False
+          del out, out2
+      out3 = get_assets_supply(url)
+      if out3 != None and out3 != []:
+          out = pd.DataFrame(out3).merge(wss_map_other_df, on='url')
+          out['Time'] = pd.to_datetime(out['Time'],unit='ms').dt.date
+          out.to_csv(fname, mode = mode, index = False, header = header)
+          mode = "a"
+          header = False
+          del out, out3
+      # if url == wss_map_other['Karura'] or  url == wss_map_other['Acala']:
+      #     out4 = get_homa_stakingLedger(url)
+      #     out = pd.DataFrame(out4).merge(wss_map_other_df, on='url')
+      #     out['Time'] = pd.to_datetime(out['Time'],unit='ms').dt.date
+      #     out.to_csv(fname, mode = mode, index = False, header = header)
+      #     mode = "a"
+      #     header = False
+      #     del out, out4
+
 
 ```
 

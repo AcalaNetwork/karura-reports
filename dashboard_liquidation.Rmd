@@ -519,9 +519,13 @@ mutate_if(cdp[n == "exact"], is.numeric, function(x) {cell_spec(x=round(x,2))}) 
 ```
 
 
-Sources: 
+Row
+---
+
+### Sources:
+
+Last updated: `r Sys.time()`
 
 * [Subscan.io](https://subscan.io)
 
 * R source code [dashboard_liquidation.Rmd](https://github.com/AcalaNetwork/karura-reports)
-
