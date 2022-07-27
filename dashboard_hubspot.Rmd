@@ -36,9 +36,10 @@ x <- GraphqlClient$new()
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
+library(reticulate)
 ```
 
-```{r tokens, cache = TRUE, include=FALSE}
+```{r tokens, include=FALSE}
 
 KSM_tokens <- getAccountBalance_acala_token("karura", window = 1, filter = 'filter: {tokenId: {in: ["KSM","LKSM"]}, total: {greaterThan: "0"}} ', endpage = 2e9)
 KSM_token_wide <- dcast(KSM_tokens, accountId ~ tokenId, value.var = 'total')
@@ -48,7 +49,7 @@ DOT_token_wide <- dcast(DOT_tokens, accountId ~ tokenId, value.var = 'total')
 
 ```
 
-```{r loans, cache = TRUE, include=FALSE}
+```{r loans, include=FALSE}
 
 aUSD_karura <- getAccountBalance_acala_token("karura", window = 1, filter = 'filter: {tokenId: {in: ["ACA","KUSD","AUSD"]}, total: {greaterThan: "0"}} ', endpage = 2e9)
 aUSD_karura_wide <- dcast(aUSD_karura, accountId ~ tokenId, value.var = 'total')
@@ -67,20 +68,102 @@ loans_karura_wide <- dcast(loans_karura, ownerId ~ collateralId, value.var = c('
 
 ```
 
+```{python}
+from substrateinterface import SubstrateInterface
+from substrateinterface.utils.ss58 import ss58_decode, ss58_encode
+
+# Convert ss58 address from one chain to another 
+# (i.e. Substrate=42, Polkadot=0, Kusama=2, Acala=10, Karura=8)
+def ss58_convert(addr, fromChain, toChain):
+  pk = ss58_decode(addr, valid_ss58_format = int(fromChain))
+  output = ss58_encode(pk, ss58_format = int(toChain))
+  return output
+
+# ss58_convert(addr, 42, 10)
+# addr = "5EChUec3ZQhUvY1g52ZbfBVkqjUY9Kcr6mcEvQMbmd38shQL"
+# input_id = 42
+# output_id = 10
+# ss58_convert(addr, input_id, output_id)
+
+def get_Balance(chain):
+    if chain=="Polkadot":
+        url = 'wss://polkadot.api.onfinality.io/public-ws'
+        decimals = 10
+    elif chain=="Kusama":
+        url = 'wss://kusama.api.onfinality.io/public-ws'
+        decimals = 12
+    elif chain=="Karura":
+        url = 'wss://karura.polkawallet.io'
+        decimals = 12
+    else:
+        url = 'wss://acala-rpc-0.aca-api.network'
+        decimals = 12
+        
+    data = []
+    substrate = SubstrateInterface(url)
+    for j in range(0, len(r.addrs)):
+        # addr = '14QV6hfAiXyb5LBajUqWR9CrQKxfQZMkBiERpQFuoj7YBqis'
+        addr = r.addrs[j]
+        balance_info = substrate.get_runtime_state(
+            module='System',
+            storage_function='Account',
+            params=[addr]).get('result')
+        balance = balance_info.get('data').get('free', 0)
+        outi = {"address": addr, 'BalanceNew': balance / 10**decimals}
+        data.append(outi)
+    return data
+
+```
+
+
 ```{r balances}
 
 karura_addr <- fread(file = '/Users/rogerbos/R_HOME/karura-reports/karura_email_balance.csv')
 karura_addr <- karura_addr[!duplicated(address)]
-karura_addr[, Balance := Balance / 100]
-# karura_addr[,.N]
+addrs <- karura_addr$address
+# n <- ceiling(nrow(karura_addr)/10)
+# for (i in 0:9) {
+#   print(paste0(i*n+1, ":", min(nrow(karura_addr), (i+1)*n)))
+#   starti <- i*n+1
+#   endi <- min(nrow(karura_addr), (i+1)*n)
+#   addrs <- karura_addr$address[starti:endi]
+#   kusama_balances <- py$get_Balance("Kusama")
+#   kusama_balances <- rbindlist(kusama_balances)
+#   fwrite(kusama_balances, "kusama_balances.csv", append = ifelse(i==0, FALSE, TRUE))
+# }
+kusama_balances <- fread("kusama_balances.csv")
+kusama_balances[BalanceNew < 0]
+karura_addr <- merge(karura_addr, kusama_balances, by = "address", all.x = TRUE)
+karura_addr[, Balance := NULL]
+setnames(karura_addr, "BalanceNew", "Balance")
+# karura_addr[Balance != BalanceNew]
+
+
+# py$ss58_convert(addr, 0, 10) # Polkadot to Acala
+# py$ss58_convert(addr, 2, 8)  # Kusama to Karura
+
+acala_addr <- fread(file = '/Users/rogerbos/R_HOME/karura-reports/acala_email_balance.csv')
+acala_addr <- acala_addr[!duplicated(address)]
+# n <- ceiling(nrow(acala_addr)/10)
+# for (i in 0:9) {
+#   print(paste0(i*n+1, ":", min(nrow(acala_addr), (i+1)*n)))
+#   starti <- i*n+1
+#   endi <- min(nrow(acala_addr), (i+1)*n)
+#   addrs <- acala_addr$address[starti:endi]
+#   polkadot_balances <- py$get_Balance("Polkadot")
+#   polkadot_balances <- rbindlist(polkadot_balances)
+#   fwrite(polkadot_balances, "polkadot_balances.csv", append = ifelse(i==0, FALSE, TRUE))
+# }
+polkadot_balances <- fread("polkadot_balances.csv")
+polkadot_balances[BalanceNew < 0]
+acala_addr <- merge(acala_addr, polkadot_balances, by = "address", all.x = TRUE)
+acala_addr[, Balance := NULL]
+setnames(acala_addr, "BalanceNew", "Balance")
+
 karura_addr <- merge(karura_addr, KSM_token_wide, by = 'accountId', all.x = TRUE)
 karura_addr <- merge(karura_addr, aUSD_karura_wide, by = 'accountId', all.x = TRUE)
 karura_addr <- merge(karura_addr, loans_karura_wide, by.x = 'accountId', by.y = 'ownerId', all.x = TRUE)
 
-acala_addr <- fread(file = '/Users/rogerbos/R_HOME/karura-reports/acala_email_balance.csv')
-acala_addr <- acala_addr[!duplicated(address)]
-acala_addr[, Balance := Balance / 100]
-# acala_addr[,.N]
 acala_addr <- merge(acala_addr, DOT_token_wide, by = 'accountId', all.x = TRUE)
 acala_addr <- merge(acala_addr, aUSD_acala_wide, by = 'accountId', all.x = TRUE)
 acala_addr <- merge(acala_addr, loans_acala_wide, by.x = 'address', by.y = 'ownerId', all.x = TRUE)
@@ -144,7 +227,7 @@ Row
 # Vault open but no aUSD minted
 ausd_karura_n <- karura_addr[, .N]
 karura_addr[, AUSD_Status := '0) None']
-karura_addr[AUSD > 0, AUSD_Status := '1) AUSD Holder']
+karura_addr[KUSD > 0, AUSD_Status := '1) AUSD Holder']
 karura_addr[depositAmount_KSM > 0 | depositAmount_LKSM > 0, AUSD_Status := '2) AUSD Vault Open']
 karura_addr[depositAmount_KSM > 0 | depositAmount_LKSM > 0 & (is.na(debitAmount_KSM) & is.na(debitAmount_LKSM)), AUSD_Status := '3) Vault open but no AUSD minted']
 ausd_tbl <- karura_addr[, .N, by = 'AUSD_Status'] %>%
@@ -278,7 +361,6 @@ aca_tbl <- merge(aca_tbl, aca_tbl2)
 knitr::kable(aca_tbl, escape = FALSE, align = c("l",rep("r",2)) ) %>%
   kable_styling()
 
-
 ```
 
 # Methodologh {.tabset}
@@ -299,11 +381,12 @@ knitr::kable(aca_tbl, escape = FALSE, align = c("l",rep("r",2)) ) %>%
   
 * The methodology for each Token is summarized in that section.
 
-* The Acala / Karura data is as of `r Sys.time()`, but the Polkadot / Kusama balances were obtained a few days earlier. 
+* The Acala / Karura data is as of `r Sys.time()`. 
 
 ```{r fname}
 
-fwrite(karura_addr, "/Users/rogerbos/karura_hubspot.csv")
-fwrite(acala_addr, "/Users/rogerbos/acala_hubspot.csv")
+fwrite(karura_addr, "/Users/rogerbos/karura_hubspot_20220722.csv")
+fwrite(acala_addr, "/Users/rogerbos/acala_hubspot_20220722.csv")
 
 ```
+
