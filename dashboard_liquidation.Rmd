@@ -46,7 +46,7 @@ library(reticulate)
 ```{r swaps, cache = FALSE, include=FALSE}
 
 swaps2 <- getDailyPools_acala_dex(network, 1)
-tvl <- swaps2[date == max(date)]
+tvl <- swaps2[Date == max(Date)]
 stable_dex_pool_size <- tvl[grep("USD", tvl$pair), sum(abs(tvlUSD))]
 
 if (tolower(network) == "acala") {

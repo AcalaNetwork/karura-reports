@@ -45,14 +45,14 @@ network <- params$network
 
 # define constants
 if (tolower(network) == 'acala') {
-  dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala-dex-subql"
+  dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/acala-dex"
   nativeToken <- "ACA"
   api_url = 'wss://acala-rpc-0.aca-api.network'
   addr1 <- "23M5ttkmR6Kco5p3LFGKMpMv4zvLkKdUQWW1wGGoV8zDX3am"
   addr2 <- "23M5ttkmR6KcnvsNJdmYTpLo9xfc54g8uCk55buDfiJPon69"
 
 } else if (tolower(network) == 'karura') {
-  dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura-dex-subql"
+  dex_endpoint <- "https://api.subquery.network/sq/AcalaNetwork/karura-dex"
   nativeToken <- "KAR"
   api_url = 'wss://karura.polkawallet.io'
   addr1 <- "qmmNufxeWaAUy17XBWGc1q4n2dkdxNS2dPkhtzCZRoExdAs"
@@ -66,10 +66,7 @@ edges <- "tokenId price timestamp updateAtBlockId"
 prices <- get_graph(dex_endpoint, method, edges, window = 31, filter = '')
 prices[, block := as.numeric(updateAtBlockId) - 1]
 prices[, date := as.Date(timestamp) - 1]
-# prices <- merge(prices, tokens, by.x = "tokenId", by.y = "Token")
-# prices[, adj := 10**as.numeric(decimals)]
 prices[, price := as.numeric(price) / 10**18]
-prices[, max_block := max(as.numeric(updateAtBlockId)), by = tokenId]
 prices[, tokenId := fixToken(tokenId)]
 # prices[tokenId=="KSM"]
 
@@ -135,7 +132,7 @@ fees <- py$fees_api %>%
 fees[, Balance := as.numeric(Balance) / 10**12]
 
 fees[, FeeIncome := Balance - shift(Balance, 1)]
-fees[, date := as.Date(Time)]
+fees[, Date := as.Date(Time)]
 
 # Stability fee
 collaterParams <- getLoansCollateralParams_acala_loan(network)
@@ -154,7 +151,7 @@ fwrite(pos, file = network %+% "_stability_rawdata.csv")
 dailyStability <- pos[, sum(dailyFee), by = Date] %>%
   setnames("V1", "Stability_Fee_USD") %>%
   setorder(Date)
-fees <- merge(fees, dailyStability, by.x = 'date', by.y = 'Date', all.x = TRUE)
+fees <- merge(fees, dailyStability, by = 'Date', all.x = TRUE)
 
 if (network == 'Karura') {
   # get bad debt penalty from subquery
@@ -168,7 +165,7 @@ fwrite(cdp3, file = network %+% "_cdp_rawdata.csv")
 
 cdp4 <- cdp3[, sum(as.numeric(badDebitVolumeUSD)) * .15, by = Date] %>%
   setnames("V1", "CDP_Penalty_Fee_USD")
-fees <- merge(fees, cdp4, by.x = 'date', by.y = 'Date', all.x = TRUE)
+fees <- merge(fees, cdp4, by = 'Date', all.x = TRUE)
 fees[is.na(CDP_Penalty_Fee_USD), CDP_Penalty_Fee_USD := 0]
 liquidations <- cdp2[, .(block.id, timestamp, collateral.id, collateralVolumeUSD, badDebitVolumeUSD)]
 
