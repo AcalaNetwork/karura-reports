@@ -244,12 +244,12 @@ data = []
 if (r.network == "Acala"):
   url = 'wss://acala-rpc-0.aca-api.network'
 else:
-  url = 'wss://karura.polkawallet.io'
+  url = 'wss://karura.api.onfinality.io/public-ws'
 substrate = SubstrateInterface(url)
 for j in range(0, len(r.price)):
   try:
     block = int(r.price.loc[j, 'block'])
-    token = r.price.loc[j, 'mytoken']
+    token = r.price.loc[j, 'token']
     hash = substrate.get_block_hash(block_id = block)        
     result = substrate.query('AcalaOracle', 'Values', params = [{'Token': token}], block_hash = hash)
     price = result.value['value'] / 10**18

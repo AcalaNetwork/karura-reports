@@ -7,7 +7,7 @@ output:
     social: menu
     source_code: embed
 params:
-  network: Karura
+  network: Acala
 ---
 
 ```{css custom1, echo=FALSE}
@@ -67,6 +67,7 @@ prices <- get_graph(dex_endpoint, method, edges, window = 31, filter = '')
 prices[, block := as.numeric(updateAtBlockId) - 1]
 prices[, date := as.Date(timestamp) - 1]
 prices[, price := as.numeric(price) / 10**18]
+prices[, max_block := max(as.numeric(updateAtBlockId)), by = tokenId]
 prices[, tokenId := fixToken(tokenId)]
 # prices[tokenId=="KSM"]
 
@@ -140,7 +141,7 @@ collaterParams <- collaterParams[!duplicated(collateral.id), .(collateral.id, AP
 if (network == 'Karura') {
   pos <- getLoansDailyPositions_acala_loan(network, window = 31, staging = FALSE) 
 } else {
-  pos <- getLoansDailyPositions_acala_loan(network, window = 31, staging = TRUE) 
+  pos <- getLoansDailyPositions_acala_loan(network, window = 31, staging = FALSE) 
 }
 pos <- pos[, .(timestamp, collateral.id, debitVolumeUSD, Date)]
 pos <- merge(pos, collaterParams, by = "collateral.id", all.x = TRUE)
@@ -157,7 +158,7 @@ if (network == 'Karura') {
   # get bad debt penalty from subquery
   cdp2 <- getLiquidateUnsafeCDP_acala_loan(network, window = 31, staging = FALSE)
 } else {
-  cdp2 <- getLiquidateUnsafeCDP_acala_loan(network, window = 31, staging = TRUE)
+  cdp2 <- getLiquidateUnsafeCDP_acala_loan(network, window = 31, staging = FALSE)
 }
 cdp2[, block.id := as.numeric(block.id)]
 cdp3 <- cdp2[, .(Date, badDebitVolumeUSD)]
@@ -172,7 +173,7 @@ liquidations <- cdp2[, .(block.id, timestamp, collateral.id, collateralVolumeUSD
 # } else {
 # 
 #   # get bad debt penalty from subquery
-#   cdp2 <- getLiquidateUnsafeCDP_acala_loan(network, window = 31, staging = TRUE)
+#   cdp2 <- getLiquidateUnsafeCDP_acala_loan(network, window = 31, staging = FALSE)
 #   cdp2[, block.id := as.numeric(block.id)]
 #   cdp3 <- cdp2[, .(Date, badDebitVolumeUSD)]
 #   fwrite(cdp3, file = network %+% "_cdp_rawdata.csv")
@@ -307,7 +308,7 @@ Row
 knitr::kable(sum30, escape = FALSE, format.args = list(big.mark = ",")) %>%
   kable_styling()
 
-dat <- fees[, .(date, FeeIncome, Stability_Fee_USD, CDP_Penalty_Fee_USD)]
+dat <- fees[, .(Date, FeeIncome, Stability_Fee_USD, CDP_Penalty_Fee_USD)]
 main <- network %+% " Daily Fees"
 dygraph(dat, main = main)  %>% 
     dySeries("FeeIncome", stepPlot = TRUE, fill = TRUE)

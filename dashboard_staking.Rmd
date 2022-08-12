@@ -161,7 +161,7 @@ Row
 # Vault open but no aUSD minted
 ausd_karura_n <- karura_addr[, .N]
 karura_addr[, AUSD_Status := '1) None']
-karura_addr[AUSD > 0, AUSD_Status := '2) AUSD Holder']
+karura_addr[KUSD > 0, AUSD_Status := '2) AUSD Holder']
 karura_addr[depositAmount_KSM > 0 | depositAmount_LKSM > 0, AUSD_Status := '3) AUSD Vault Open']
 karura_addr[depositAmount_KSM > 0 | depositAmount_LKSM > 0 & (is.na(debitAmount_KSM) & is.na(debitAmount_LKSM)), AUSD_Status := '4) Vault open but no AUSD minted']
 ausd_tbl <- karura_addr[, .N, by = 'AUSD_Status'] %>%
