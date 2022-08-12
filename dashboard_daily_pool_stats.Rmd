@@ -56,16 +56,16 @@ maintxt <- "Total Value Locked for "
 k_dp_dex <- getDailyPool_acala_dex("karura")
 k_dp_dex[, tvlUSD := totalTVL / 1e3]
 k_dp_dex[, date := as.Date(timestamp)]
-k_dp <- getPoolDayData_acala("karura")
-k_dp[, tvlUSD := tvlUSD / 1e3]
-k_dp[, token0Price := token0Close]
-k_dp[, date := as.Date(date)]
-k_both <- merge(k_dp,
-                k_dp_dex,
-                by = c("poolId","date"),
-                all = TRUE,
-                suffixes = c("","_DEX"))
-k_pools <- sort(unique(k_both$poolId))
+# k_dp <- getPoolDayData_acala("karura")
+# k_dp[, tvlUSD := tvlUSD / 1e3]
+# k_dp[, token0Price := token0Close]
+# k_dp[, date := as.Date(date)]
+# k_both <- merge(k_dp,
+#                 k_dp_dex,
+#                 by = c("poolId","date"),
+#                 all = TRUE,
+#                 suffixes = c("","_DEX"))
+k_pools <- sort(unique(k_dp_dex$poolId))
 
 
 a_dp_dex <- getDailyPool_acala_dex("acala")
@@ -75,16 +75,16 @@ a_dp_dex[, date := as.Date(timestamp)]
 a_dp_dex[, test := token1Amount / token0Amount]
 a_dp_dex[, .(token0Id, token1Id, token0Price, token1Price, test)]
 
-a_dp <- getPoolDayData_acala("acala")
-a_dp[, tvlUSD := tvlUSD / 1e3]
-a_dp[, token0Price := token0Close]
-a_dp[, date := as.Date(date)]
-a_both <- merge(a_dp,
-                a_dp_dex,
-                by = c("poolId","date"),
-                all = TRUE,
-                suffixes = c("","_DEX"))
-a_pools <- sort(unique(a_both$poolId))
+# a_dp <- getPoolDayData_acala("acala")
+# a_dp[, tvlUSD := tvlUSD / 1e3]
+# a_dp[, token0Price := token0Close]
+# a_dp[, date := as.Date(date)]
+# a_both <- merge(a_dp,
+#                 a_dp_dex,
+#                 by = c("poolId","date"),
+#                 all = TRUE,
+#                 suffixes = c("","_DEX"))
+a_pools <- sort(unique(a_dp_dex$poolId))
 
 #    "token0Amount": "2461670866930004326",
 #           "token1Amount": "1872076768294621",
@@ -108,22 +108,23 @@ Row
 ----
 
 ```{r}
+head(a_dp_dex)
 
 pool <- a_pools[1]
-dygraph(a_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(a_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(a_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(a_both[poolId == pool, .(date, token0Price, token0Price_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, token0Price)], 
         main = "Token 0 Price")  %>% 
   dySeries("token0Price", stepPlot = TRUE, fill = TRUE)
 
@@ -135,18 +136,22 @@ Row
 ```{r}
 
 pool <- a_pools[2]
-dygraph(a_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(a_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(a_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+
+dygraph(a_dp_dex[poolId == pool, .(date, token0Price)], 
+        main = "Token 0 Price")  %>% 
+  dySeries("token0Price", stepPlot = TRUE, fill = TRUE)
 
 ```
 
@@ -156,18 +161,22 @@ Row
 ```{r}
 
 pool <- a_pools[3]
-dygraph(a_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(a_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(a_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+
+dygraph(a_dp_dex[poolId == pool, .(date, token0Price)], 
+        main = "Token 0 Price")  %>% 
+  dySeries("token0Price", stepPlot = TRUE, fill = TRUE)
 
 ```
 
@@ -177,18 +186,22 @@ Row
 ```{r}
 
 pool <- a_pools[4]
-dygraph(a_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(a_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(a_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(a_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+
+dygraph(a_dp_dex[poolId == pool, .(date, token0Price)], 
+        main = "Token 0 Price")  %>% 
+  dySeries("token0Price", stepPlot = TRUE, fill = TRUE)
 
 ```
 
@@ -201,16 +214,16 @@ Row
 ```{r}
 
 pool <- k_pools[1]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -223,16 +236,16 @@ Row
 ```{r}
 
 pool <- k_pools[2]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -244,16 +257,16 @@ Row
 ```{r}
 
 pool <- k_pools[3]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -265,16 +278,16 @@ Row
 ```{r}
 
 pool <- k_pools[4]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -286,16 +299,16 @@ Row
 ```{r}
 
 pool <- k_pools[5]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -307,16 +320,16 @@ Row
 ```{r}
 
 pool <- k_pools[6]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -328,16 +341,16 @@ Row
 ```{r}
 
 pool <- k_pools[7]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -349,16 +362,16 @@ Row
 ```{r}
 
 pool <- k_pools[8]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -370,16 +383,16 @@ Row
 ```{r}
 
 pool <- k_pools[9]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -391,16 +404,16 @@ Row
 ```{r}
 
 pool <- k_pools[10]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -412,16 +425,16 @@ Row
 ```{r}
 
 pool <- k_pools[11]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -433,16 +446,16 @@ Row
 ```{r}
 
 pool <- k_pools[12]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -454,16 +467,16 @@ Row
 ```{r}
 
 pool <- k_pools[13]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -475,16 +488,16 @@ Row
 ```{r}
 
 pool <- k_pools[14]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -496,16 +509,16 @@ Row
 ```{r}
 
 pool <- k_pools[15]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -517,16 +530,16 @@ Row
 ```{r}
 
 pool <- k_pools[16]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -538,16 +551,16 @@ Row
 ```{r}
 
 pool <- k_pools[17]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
@@ -559,58 +572,16 @@ Row
 ```{r}
 
 pool <- k_pools[18]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
   dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
   dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
 
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
-        main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
-
-```
-
-Row
-----
-
-```{r}
-
-pool <- k_pools[19]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
-        main = maintxt %+% pool,
-        ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
-
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
-        main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
-
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
-        main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
-
-```
-
-Row
-----
-
-```{r}
-
-pool <- k_pools[20]
-dygraph(k_both[poolId == pool, .(date, tvlUSD, tvlUSD_DEX)], 
-        main = maintxt %+% pool,
-        ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
-
-dygraph(k_both[poolId == pool, .(date, token0Amount, token0Amount_DEX)], 
-        main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
-
-dygraph(k_both[poolId == pool, .(date, token1Amount, token1Amount_DEX)], 
+dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
   dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
 
