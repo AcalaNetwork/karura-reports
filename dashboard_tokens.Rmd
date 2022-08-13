@@ -484,6 +484,7 @@ rd[Token == "1001", Symbol := "sDOT"]
 # rd[, .N, by = Symbol][N > 1]
 
 rd <- merge(rd, subscanr::tokens[, .(Token, decimals)], by.x = "Symbol", by.y = "Token")
+rd <- rd[!duplicated(Name, Symbol)]
 rd[, adj := 10 ** as.numeric(decimals)]
 rd[, Amount := as.numeric(Amount) / adj]
 rd[, priorAmount := as.numeric(priorAmount) / adj]
