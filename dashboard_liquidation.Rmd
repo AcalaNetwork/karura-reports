@@ -58,10 +58,10 @@ if (tolower(network) == "acala") {
 }
 swaps <- unique(swaps, by = "event_index")
 summary(swaps$time)
-swaps[, token0 := fixToken(token0)]
-swaps[, token1 := fixToken(token1)]
-swaps[, token2 := fixToken(token2)]
-swaps[, token3 := fixToken(token3)]
+swaps[, token0 := fixToken(token0, network)]
+swaps[, token1 := fixToken(token1, network)]
+swaps[, token2 := fixToken(token2, network)]
+swaps[, token3 := fixToken(token3, network)]
 swaps <- merge(swaps, tokens, by.x="token0", by.y="Token", all.x = TRUE) %>% 
   setnames("decimals", "decimals0")
 swaps[, Name := NULL]
@@ -195,20 +195,20 @@ am <- get_subscan_events(nobs = 5000, network = network, module = 'auctionmanage
 dealt <- am$auctionmanager_CollateralAuctionDealt[, .(block_num, CurrencyId, CollateralAmount, WinnerId, PaymentAmount)]
 dealt[, CollateralAmount := as.numeric(CollateralAmount)]
 dealt[, PaymentAmount := as.numeric(PaymentAmount)]
-dealt[, CurrencyId := fixToken(CurrencyId)]
+dealt[, CurrencyId := fixToken(CurrencyId, network)]
 dealt[, WinnerId := as.character(WinnerId)]
 
 dextake <- am$auctionmanager_DEXTakeCollateralAuction[, 
           .(event_id, time, block_num, CurrencyId, SupplyCollateralAmount, TargetStableAmount)]
 dextake[, SupplyCollateralAmount := as.numeric(SupplyCollateralAmount)]
 # Add TradePrice and AvgDexPrice
-dextake[, CurrencyId := fixToken(CurrencyId)]
+dextake[, CurrencyId := fixToken(CurrencyId, network)]
 dextake[, SupplyCollateralAmount := as.numeric(SupplyCollateralAmount)]
 dextake[, TargetStableAmount := as.numeric(TargetStableAmount)]
 
 cdp_rawdata <- get_subscan_events(nobs = 5000, network = network, module = 'cdpengine', call = 'LiquidateUnsafeCDP', start_page = 1, extract = TRUE)
 cdp <- cdp_rawdata$cdpengine_LiquidateUnsafeCDP[, .(event_id, time, block_num, CurrencyId, CollateralAmount, BadDebtValue)]
-cdp[, CurrencyId := fixToken(CurrencyId)]
+cdp[, CurrencyId := fixToken(CurrencyId, network)]
 cdp[, CollateralAmount := as.numeric(CollateralAmount)]
 cdp[, BadDebtValue := as.numeric(BadDebtValue)]
 cdp[, BadDebtPenalty := as.numeric(BadDebtValue) * 1.15]

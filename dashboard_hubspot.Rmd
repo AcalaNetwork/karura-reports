@@ -144,6 +144,27 @@ setnames(karura_addr, "BalanceNew", "Balance")
 
 acala_addr <- fread(file = '/Users/rogerbos/R_HOME/karura-reports/acala_email_balance.csv')
 acala_addr <- acala_addr[!duplicated(address)]
+
+
+if (FALSE) {
+  head(acala_addr)
+
+  library(readxl)
+  hack <- read_xlsx("~/Downloads/HackTrace.xlsx")
+  hack <- merge(hack, acala_addr, by.x="acc", by.y="accountId", all.x = TRUE)
+  hack[, c("Stolen", "acc", "email")]
+  fwrite(hack, "~/Downloads/hacktrace.csv")
+
+}
+
+
+
+
+
+
+
+
+
 # n <- ceiling(nrow(acala_addr)/10)
 # for (i in 0:9) {
 #   print(paste0(i*n+1, ":", min(nrow(acala_addr), (i+1)*n)))

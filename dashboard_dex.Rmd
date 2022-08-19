@@ -80,9 +80,9 @@ swaps[, price1 := as.numeric(price1) / 1e18]
 swaps[, amount0 := token0InAmount / adj0]
 swaps[, amount1 := token1OutAmount / adj1]
 
-swaps[, token0 := subscanr::fixToken(token0)]
-swaps[, token1 := subscanr::fixToken(token1)]
-swaps[, tradePath := subscanr::fixToken(tradePath)]
+swaps[, token0 := subscanr::fixToken(token0, network)]
+swaps[, token1 := subscanr::fixToken(token1, network)]
+swaps[, tradePath := subscanr::fixToken(tradePath, network)]
 swaps[, pathLength := length(strsplit(tradePath, ",")[[1]]) - 1, by = id]
 
 swaps[, volume0USD := amount0 * price0]

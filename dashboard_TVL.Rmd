@@ -237,8 +237,8 @@ for (i in 1:nrow(a_dailyTVL)) {
   rewards <- py$getRewards() %>%
     as.data.table
   # sort(unique(c(rewards$pair0, rewards$pair1)))
-  rewards[, pair0 := fixToken(pair0)]
-  rewards[, pair1 := fixToken(pair1)]
+  rewards[, pair0 := fixToken(pair0, network)]
+  rewards[, pair1 := fixToken(pair1, network)]
   rewards <- merge(rewards, tokens, by.x = 'pair0', by.y="Token")
   setnames(rewards, "decimals", "decimals0")
   rewards[, Name := NULL]
@@ -255,7 +255,7 @@ for (i in 1:nrow(a_dailyTVL)) {
   
   price = py$getOraclePrices() %>%
     as.data.table
-  price[, token := fixToken(token)]
+  price[, token := fixToken(token, network)]
   
   rewards <- merge(rewards, price, by.x = "pair0", by.y="token", all.x = TRUE)
   setnames(rewards, "price", "price0")
@@ -329,8 +329,8 @@ for (i in 1:nrow(k_dailyTVL)) {
   rewards <- py$getRewards() %>%
     as.data.table
   # sort(unique(c(rewards$pair0, rewards$pair1)))
-  rewards[, pair0 := fixToken(pair0)]
-  rewards[, pair1 := fixToken(pair1)]
+  rewards[, pair0 := fixToken(pair0, network)]
+  rewards[, pair1 := fixToken(pair1, network)]
   rewards <- merge(rewards, tokens, by.x = 'pair0', by.y="Token")
   setnames(rewards, "decimals", "decimals0")
   rewards[, Name := NULL]
@@ -347,7 +347,7 @@ for (i in 1:nrow(k_dailyTVL)) {
   
   price = py$getOraclePrices() %>%
     as.data.table
-  price[, token := fixToken(token)]
+  price[, token := fixToken(token, network)]
   
   rewards <- merge(rewards, price, by.x = "pair0", by.y="token", all.x = TRUE)
   setnames(rewards, "price", "price0")

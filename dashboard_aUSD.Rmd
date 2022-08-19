@@ -24,6 +24,7 @@ knitr::opts_chunk$set(
 )
 
 library(ggplot2)
+library(ggpubr)
 # library(dygraphs)
 library(kableExtra)
 library(formattable)
@@ -38,7 +39,162 @@ x <- GraphqlClient$new()
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
-window <- today() - as.Date("2021-12-31") + 1
+# window <- today() - as.Date("2021-12-31") + 1
+window <- 10
+
+k_collateral <- getLoansDailyCollateral_acala_loan("karura", window)
+k_current_collateral <- k_collateral[Date == max(Date), .(collateral.id, depositVolumeUSD)]
+k_current_collateral <- k_current_collateral[depositVolumeUSD > 0]
+k_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 2) * 100, by = "Date"]
+k_collateral[, labs := collateral.id %+% " (" %+% pct %+% "%)", by = "Date"]
+
+setorder(k_collateral, pct)
+k_current_collateral <- k_collateral[Date == max(Date), .(collateral.id, depositVolumeUSD)]
+k_current_collateral <- k_collateral[depositVolumeUSD > 0 & Date == max(Date), .(collateral.id, depositVolumeUSD, pct, labs)]
+max(k_collateral$Date)
+
+a_collateral <- getLoansDailyCollateral_acala_loan("acala", window)
+a_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 2) * 100, by = "Date"]
+a_collateral[, labs := collateral.id %+% " (" %+% pct %+% "%)", by = "Date"]
+setorder(a_collateral, pct)
+a_current_collateral <- a_collateral[depositVolumeUSD > 0 & Date == max(Date), .(collateral.id, depositVolumeUSD, pct, labs)]
+max(a_collateral$Date)
+
+# both_collateral <- rbind(k_collateral, a_collateral, fill = TRUE)
+# both_current_collateral <- both_collateral[Date == max(Date), .(collateral.id, depositVolumeUSD)]
+both_current_collateral <- rbind(k_current_collateral, a_current_collateral)
+both_current_collateral <- both_current_collateral[depositVolumeUSD > 0]
+
+# Collaeralization Ratio
+K_cratio <- k_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by = Date] %>%
+  setnames("V1", "Karura Collaeralization Ratio")
+  
+a_cratio <- a_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by = Date] %>%
+  setnames("V1", "Acala Collaeralization Ratio")
+  
+both_cratio <- both_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by = Date] %>%
+  setnames("V1", "Combined Collaeralization Ratio")
+
+# Stablecoin percentage of collateral
+both_pct <- both_collateral[, sum(debitVolumeUSD) / sum(depositVolumeUSD), by = Date] %>%
+  setnames("V1", "Combined Stablecoin Percentage of Collaeral")
+
+a_params_current <- getLoansCollateralParams_acala_loan("Acala")
+k_params_current <- getLoansCollateralParams_acala_loan("Karura")
+
+cols <- c("collateral.id","maximumTotalDebitValue","liquidationRatio","requiredCollateralRatio")
+a_params_current[, ..cols]
+k_params_current[, ..cols]
+
+
+a_params <- getLoansCollateralParamsHistory_acala_loan("Acala")
+k_params <- getLoansCollateralParamsHistory_acala_loan("Karura")
+
+params <- rbind(a_params, k_params)
+params[, Date := as.Date(startAt)]
+params[, Block := as.numeric(startAtBlockId)]
+params[, maximumTotalDebitValue := as.numeric(maximumTotalDebitValue)]
+params[, interestRatePerSec := as.numeric(interestRatePerSec)]
+params[, interestRateAnnualized := ((interestRatePerSec / 1e18 + 1) ** (365 * 86400) - 1)]
+# summary(params$interestRateAnnualized)
+
+# names(params)
+# str(params)
+
+params_long <- melt(params, id.vars=c("collateral.id", "Block"), measure.vars=c("maximumTotalDebitValue","interestRateAnnualized","liquidationRatio","liquidationPenalty","requiredCollateralRatio"))
+params_long <- unique(params_long)
+setorder(params_long, collateral.id, variable, Block)
+
+params_long[, .N, by = collateral.id]
+
+
+tag <- "KAR"
+params_long[collateral.id == tag & Block > 376050]
+
+ggplot(params_long[collateral.id == tag & Block > 376050], aes(Block, value)) +
+  geom_line() +
+  facet_wrap(vars(variable), scales = "free_y", nrow = 2, strip.position = "top") +
+  theme(strip.background = element_blank(), strip.placement = "outside") +
+  theme(axis.text.x=element_text(angle = -90, hjust = 0))
+
+```
+
+# pie chart
+k_current_collateral_pie <- ggplot(k_current_collateral, aes(x = "", y = depositVolumeUSD, fill = collateral.id)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar("y", start = 0) +
+  theme_void() # remove background, grid, numeric labels
+
+# Compute the position of labels
+data <- data %>% 
+  arrange(desc(group)) %>%
+  mutate(prop = value / sum(data$value) *100) %>%
+  mutate(ypos = cumsum(prop)- 0.5*prop )
+
+# Basic piechart
+ggplot(data, aes(x="", y=prop, fill=group)) +
+  geom_bar(stat="identity", width=1, color="white") +
+  coord_polar("y", start=0) +
+  theme_void() + 
+  theme(legend.position="none") +
+  
+  geom_text(aes(y = ypos, label = group), color = "white", size=6) +
+  scale_fill_brewer(palette="Set1")
+  
+a_current_collateral_pie <- ggplot(a_current_collateral, aes(x = "", y = depositVolumeUSD, fill = collateral.id)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar("y", start = 0) +
+  theme_void() # remove background, grid, numeric labels
+
+# ggpie chart
+a_df <- as.data.frame(a_current_collateral)
+ggpie(a_df, "pct", label = "collateral.id")
+# Change fill color by group set line color to white
+ggpie(a_df, "pct", label = "collateral.id", fill = "collateral.id", color = "white")
+# Show group names and value as labels
+ggpie(a_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(112, "bold", "red"))
+
+
+# donut chart
+a_df <- as.data.frame(a_current_collateral)
+ggdonutchart(a_df, "pct", label = "collateral.id")
+# Change fill color by group set line color to white
+ggdonutchart(a_df, "pct", label = "collateral.id", fill = "collateral.id", color = "white")
+# Show group names and value as labels
+ggdonutchart(a_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(2, "bold", "red"))
+
+
+
+
+
+
+df <- data.frame(group = c("A", "B", "C","D"),
+  value = c(1, 21, 26, 52))
+ggdonutchart(df, "value", label = "group")
+ ggdonutchart(df, "value", label = "group",
+      fill = "group", color = "white")
+# Show group names and value as labels
+labs <- paste0(df$group, " (", df$value, "%)")
+ggdonutchart(df, "value", label = "labs",
+   fill = "group", color = "white")
+
+df %>% 
+  mutate(labs = paste0(group, " (", value, "%)")) %>% 
+  ggdonutchart(df, "value", label = "labs",
+             fill = "group", color = "white")
+             
+# lollipop
+a_collateral_lollipop <- ggplot(a_current_collateral, aes(x=collateral.id, y=depositVolumeUSD)) +
+  geom_segment( aes(x=collateral.id, xend=collateral.id, y=0, yend=depositVolumeUSD)) +
+  geom_point( size=5, color="red", fill=alpha("orange", 0.3), alpha=0.7, shape=21, stroke=2) 
+
+k_collateral_lollipop <- ggplot(k_current_collateral, aes(x=collateral.id, y=depositVolumeUSD)) +
+  geom_segment( aes(x=collateral.id, xend=collateral.id, y=0, yend=depositVolumeUSD)) +
+  geom_point( size=5, color="red", fill=alpha("orange", 0.3), alpha=0.7, shape=21, stroke=2) 
+
+
+
+
 
 # Liquidity Pool TVL ($3.72M) = totalDefiTvl = totalDexTvl + totalDexLockedTvl + homaLocked + stableCoinTvl
 kdex <- getDailyPools_acala_dex("karura", window) %>%
@@ -60,6 +216,27 @@ from substrateinterface import SubstrateInterface
 
 import pandas as pd
 
+def getFeePayment(network):
+    if network=="Karura":
+        url = 'wss://karura.polkawallet.io'
+        token = 'KUSD'
+    else:
+        url = 'wss://acala-rpc-0.aca-api.network'
+        token = 'AUSD'
+    substrate = SubstrateInterface(url)
+    data = []
+    for block_id in r.blocks:
+        hash = substrate.get_block_hash(0)
+        fee = substrate.query(module='TransactionPayment',storage_function='TransactionFeePaid', block_hash = hash)
+        outi = {"Block": block_id, 'aUSD': ausd.value / 10**12}
+        data.append(outi)
+    out = pd.DataFrame(data)
+    return out
+
+
+
+
+
 def getTotalIssuance(network):
     if network=="Karura":
         url = 'wss://karura.polkawallet.io'
@@ -67,7 +244,6 @@ def getTotalIssuance(network):
     else:
         url = 'wss://acala-rpc-0.aca-api.network'
         token = 'AUSD'
-
     substrate = SubstrateInterface(url)
     data = []
     for block_id in r.blocks:
@@ -75,7 +251,6 @@ def getTotalIssuance(network):
         ausd = substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': token}], block_hash = hash)
         outi = {"Block": block_id, 'aUSD': ausd.value / 10**12}
         data.append(outi)
-    
     out = pd.DataFrame(data)
     return out
 
@@ -102,7 +277,7 @@ def getTotalIssuance(network):
     setnames("aUSD", "aUSD_Acala")
   dailyTVL[, aUSD_Total := aUSD_Karura + aUSD_Acala]
   
-  fwrite(x = dailyTVL, file = "aUSD_Issuance.csv")
+  # fwrite(x = dailyTVL, file = "aUSD_Issuance.csv")
 
 ```
 
