@@ -45,8 +45,8 @@ window <- 10
 k_collateral <- getLoansDailyCollateral_acala_loan("karura", window)
 k_current_collateral <- k_collateral[Date == max(Date), .(collateral.id, depositVolumeUSD)]
 k_current_collateral <- k_current_collateral[depositVolumeUSD > 0]
-k_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 2) * 100, by = "Date"]
-k_collateral[, labs := collateral.id %+% " (" %+% pct %+% "%)", by = "Date"]
+k_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 3) * 100, by = "Date"]
+k_collateral[, labs := pct %+% "%", by = "Date"]
 
 setorder(k_collateral, pct)
 k_current_collateral <- k_collateral[Date == max(Date), .(collateral.id, depositVolumeUSD)]
@@ -54,19 +54,25 @@ k_current_collateral <- k_collateral[depositVolumeUSD > 0 & Date == max(Date), .
 max(k_collateral$Date)
 
 a_collateral <- getLoansDailyCollateral_acala_loan("acala", window)
-a_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 2) * 100, by = "Date"]
-a_collateral[, labs := collateral.id %+% " (" %+% pct %+% "%)", by = "Date"]
+a_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 3) * 100, by = "Date"]
+a_collateral[, labs := pct %+% "%", by = "Date"]
 setorder(a_collateral, pct)
 a_current_collateral <- a_collateral[depositVolumeUSD > 0 & Date == max(Date), .(collateral.id, depositVolumeUSD, pct, labs)]
 max(a_collateral$Date)
 
 # both_collateral <- rbind(k_collateral, a_collateral, fill = TRUE)
 # both_current_collateral <- both_collateral[Date == max(Date), .(collateral.id, depositVolumeUSD)]
-both_current_collateral <- rbind(k_current_collateral, a_current_collateral)
-both_current_collateral <- both_current_collateral[depositVolumeUSD > 0]
+both_collateral <- rbind(k_collateral, a_collateral)
+both_collateral[, pct := NULL]
+both_collateral[, labs := NULL]
+both_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 3) * 100]
+both_collateral[, labs := pct %+% "%"]
+setorder(both_collateral, pct)
+both_collateral <- both_collateral[depositVolumeUSD > 0]
+both_current_collateral <- both_collateral[depositVolumeUSD > 0 & Date == max(Date), .(collateral.id, depositVolumeUSD, pct, labs)]
 
 # Collaeralization Ratio
-K_cratio <- k_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by = Date] %>%
+k_cratio <- k_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by = Date] %>%
   setnames("V1", "Karura Collaeralization Ratio")
   
 a_cratio <- a_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by = Date] %>%
@@ -76,7 +82,13 @@ both_cratio <- both_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by
   setnames("V1", "Combined Collaeralization Ratio")
 
 # Stablecoin percentage of collateral
-both_pct <- both_collateral[, sum(debitVolumeUSD) / sum(depositVolumeUSD), by = Date] %>%
+k_pct_stablecoin <- k_collateral[, sum(debitVolumeUSD) / sum(depositVolumeUSD), by = Date] %>%
+  setnames("V1", "Combined Stablecoin Percentage of Collaeral")
+
+a_pct_stablecoin <- a_collateral[, sum(debitVolumeUSD) / sum(depositVolumeUSD), by = Date] %>%
+  setnames("V1", "Combined Stablecoin Percentage of Collaeral")
+
+both_pct_stablecoin <- both_collateral[, sum(debitVolumeUSD) / sum(depositVolumeUSD), by = Date] %>%
   setnames("V1", "Combined Stablecoin Percentage of Collaeral")
 
 a_params_current <- getLoansCollateralParams_acala_loan("Acala")
@@ -88,6 +100,8 @@ k_params_current[, ..cols]
 
 
 a_params <- getLoansCollateralParamsHistory_acala_loan("Acala")
+# a_params
+
 k_params <- getLoansCollateralParamsHistory_acala_loan("Karura")
 
 params <- rbind(a_params, k_params)
@@ -111,90 +125,13 @@ params_long[, .N, by = collateral.id]
 tag <- "KAR"
 params_long[collateral.id == tag & Block > 376050]
 
-ggplot(params_long[collateral.id == tag & Block > 376050], aes(Block, value)) +
+kar_params <- ggplot(params_long[collateral.id == tag & Block > 376050], aes(Block, value)) +
   geom_line() +
   facet_wrap(vars(variable), scales = "free_y", nrow = 2, strip.position = "top") +
   theme(strip.background = element_blank(), strip.placement = "outside") +
   theme(axis.text.x=element_text(angle = -90, hjust = 0))
 
-```
-
-# pie chart
-k_current_collateral_pie <- ggplot(k_current_collateral, aes(x = "", y = depositVolumeUSD, fill = collateral.id)) +
-  geom_bar(stat = "identity", width = 1, color = "white") +
-  coord_polar("y", start = 0) +
-  theme_void() # remove background, grid, numeric labels
-
-# Compute the position of labels
-data <- data %>% 
-  arrange(desc(group)) %>%
-  mutate(prop = value / sum(data$value) *100) %>%
-  mutate(ypos = cumsum(prop)- 0.5*prop )
-
-# Basic piechart
-ggplot(data, aes(x="", y=prop, fill=group)) +
-  geom_bar(stat="identity", width=1, color="white") +
-  coord_polar("y", start=0) +
-  theme_void() + 
-  theme(legend.position="none") +
-  
-  geom_text(aes(y = ypos, label = group), color = "white", size=6) +
-  scale_fill_brewer(palette="Set1")
-  
-a_current_collateral_pie <- ggplot(a_current_collateral, aes(x = "", y = depositVolumeUSD, fill = collateral.id)) +
-  geom_bar(stat = "identity", width = 1, color = "white") +
-  coord_polar("y", start = 0) +
-  theme_void() # remove background, grid, numeric labels
-
-# ggpie chart
-a_df <- as.data.frame(a_current_collateral)
-ggpie(a_df, "pct", label = "collateral.id")
-# Change fill color by group set line color to white
-ggpie(a_df, "pct", label = "collateral.id", fill = "collateral.id", color = "white")
-# Show group names and value as labels
-ggpie(a_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(112, "bold", "red"))
-
-
-# donut chart
-a_df <- as.data.frame(a_current_collateral)
-ggdonutchart(a_df, "pct", label = "collateral.id")
-# Change fill color by group set line color to white
-ggdonutchart(a_df, "pct", label = "collateral.id", fill = "collateral.id", color = "white")
-# Show group names and value as labels
-ggdonutchart(a_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(2, "bold", "red"))
-
-
-
-
-
-
-df <- data.frame(group = c("A", "B", "C","D"),
-  value = c(1, 21, 26, 52))
-ggdonutchart(df, "value", label = "group")
- ggdonutchart(df, "value", label = "group",
-      fill = "group", color = "white")
-# Show group names and value as labels
-labs <- paste0(df$group, " (", df$value, "%)")
-ggdonutchart(df, "value", label = "labs",
-   fill = "group", color = "white")
-
-df %>% 
-  mutate(labs = paste0(group, " (", value, "%)")) %>% 
-  ggdonutchart(df, "value", label = "labs",
-             fill = "group", color = "white")
-             
-# lollipop
-a_collateral_lollipop <- ggplot(a_current_collateral, aes(x=collateral.id, y=depositVolumeUSD)) +
-  geom_segment( aes(x=collateral.id, xend=collateral.id, y=0, yend=depositVolumeUSD)) +
-  geom_point( size=5, color="red", fill=alpha("orange", 0.3), alpha=0.7, shape=21, stroke=2) 
-
-k_collateral_lollipop <- ggplot(k_current_collateral, aes(x=collateral.id, y=depositVolumeUSD)) +
-  geom_segment( aes(x=collateral.id, xend=collateral.id, y=0, yend=depositVolumeUSD)) +
-  geom_point( size=5, color="red", fill=alpha("orange", 0.3), alpha=0.7, shape=21, stroke=2) 
-
-
-
-
+#   theme_void() # remove background, grid, numeric labels
 
 # Liquidity Pool TVL ($3.72M) = totalDefiTvl = totalDexTvl + totalDexLockedTvl + homaLocked + stableCoinTvl
 kdex <- getDailyPools_acala_dex("karura", window) %>%
@@ -281,7 +218,7 @@ def getTotalIssuance(network):
 
 ```
 
-# aUSD {.tabset}
+# Charts {.tabset}
 
 Row
 ----
@@ -302,6 +239,78 @@ ggplot(dat, aes(fill=variable, y=aUSD, x=Date)) +
     ylab("aUSD (in millions USD)")
 
 ```
+
+
+Row
+----
+
+```{r pie, out.width = '33%'}
+# ggpie chart
+a_df <- as.data.frame(a_current_collateral)
+k_df <- as.data.frame(k_current_collateral)
+both_df <- as.data.frame(both_current_collateral)
+
+ggpie(a_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(2, "bold", "red"), main = "aUSD collateral on Acala")
+
+ggpie(k_df, "pct", label = "labs", fill = "collateral.id", lab.font = c(2, "bold", "red"), main = "aUSD collateral on Acala")
+
+ggpie(both_df, "pct", label = "labs", fill = "collateral.id", lab.font = c(2, "bold", "red"), main = "aUSD collateral in Aggregate")
+
+```
+
+Row
+----
+
+```{r donut, out.width = '33%'}
+
+# df <- data.frame(group = c("A", "B", "C","D"), value = c(1, 21, 26, 52))
+# df$labs <- paste0(df$group, " (", df$value, "%)")
+# ggdonutchart(df, "value", label = "labs", fill = "group", color = "white")
+
+ggdonutchart(a_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(2, "bold", "red"), main = "aUSD collateral on Acala")
+
+ggdonutchart(k_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(2, "bold", "red"), main = "aUSD collateral on Karura")
+
+ggdonutchart(both_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(2, "bold", "red"), main = "aUSD collateral in Aggregate")
+
+```
+
+Row
+----
+
+```{r lollipop, out.width = '33%'}
+
+# lollipop
+ggplot(a_current_collateral, aes(x=collateral.id, y=depositVolumeUSD)) +
+  geom_segment( aes(x=collateral.id, xend=collateral.id, y=0, yend=depositVolumeUSD)) +
+  geom_point( size=5, color="red", fill=alpha("orange", 0.3), alpha=0.7, shape=21, stroke=2) +
+  ggtitle("aUSD collateral on Acala", ) +
+theme(plot.title = element_text(color="red", size=14, face="plain"),
+axis.title.x = element_blank(),
+axis.title.y = element_text(color="#993333", size=14, face="plain")
+)  
+
+ggplot(k_current_collateral, aes(x=collateral.id, y=depositVolumeUSD)) +
+  geom_segment( aes(x=collateral.id, xend=collateral.id, y=0, yend=depositVolumeUSD)) +
+  geom_point( size=5, color="red", fill=alpha("orange", 0.3), alpha=0.7, shape=21, stroke=2) +
+  ggtitle("aUSD collateral on Karura", ) +
+theme(plot.title = element_text(color="red", size=14, face="plain"),
+axis.title.x = element_blank(),
+axis.title.y = element_text(color="#993333", size=14, face="plain")
+)  
+
+ggplot(both_current_collateral, aes(x=collateral.id, y=depositVolumeUSD)) +
+  geom_segment( aes(x=collateral.id, xend=collateral.id, y=0, yend=depositVolumeUSD)) +
+  geom_point( size=5, color="red", fill=alpha("orange", 0.3), alpha=0.7, shape=21, stroke=2) +
+  ggtitle("aUSD collateral in Aggregate", ) +
+theme(plot.title = element_text(color="red", size=14, face="plain"),
+axis.title.x = element_blank(),
+axis.title.y = element_text(color="#993333", size=14, face="plain")
+)  
+
+```
+
+# Minting data {.tabset}
 
 Row
 ----
@@ -324,3 +333,34 @@ Please click on the *Source Code* link at the top of the document to see the ful
 
 #### aUSD
 - aUDS (or kUSD) obtained from the [py-substrate-interface](https://github.com/polkascan/py-substrate-interface) using function *substrate.query(module='Tokens',storage_function='TotalIssuance', params = [{'Token': 'AUSD'}], block_hash = hash)*
+
+
+# Collateral data {.tabset}
+
+Row
+----
+
+### aUSD Collateral
+
+```{r collateal}
+
+k_collateral_wide <- dcast(k_collateral, timestamp ~ collateral.id, value.var = "depositVolumeUSD", fun.aggregate = sum)
+k_collateral_wide[, Total := rowSums(k_collateral_wide[, -1])]
+
+a_collateral_wide <- dcast(a_collateral, timestamp ~ collateral.id, value.var = "depositVolumeUSD", fun.aggregate = sum)
+a_collateral_wide[, Total := rowSums(a_collateral_wide[, -1])]
+
+both_collateral_wide <- dcast(both_collateral, timestamp ~ collateral.id, value.var = "depositVolumeUSD", fun.aggregate = sum)
+both_collateral_wide[, Total := rowSums(both_collateral_wide[, -1])]
+
+knitr::kable(a_collateral_wide, escape = FALSE, format.args = list(big.mark = ","), caption = "aSUD Collateral on Acala") %>%
+  kable_styling()
+
+knitr::kable(k_collateral_wide, escape = FALSE, format.args = list(big.mark = ","), caption = "aSUD Collateral on Karura") %>%
+  kable_styling()
+
+knitr::kable(both_collateral_wide, escape = FALSE, format.args = list(big.mark = ","), caption = "aSUD Collateral in Aggregate") %>%
+  kable_styling()
+
+```
+

@@ -114,19 +114,24 @@ pool <- a_pools[1]
 dygraph(a_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
-
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+  
+  
 dygraph(a_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token0Price)], 
         main = "Token 0 Price")  %>% 
-  dySeries("token0Price", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Price", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -139,19 +144,23 @@ pool <- a_pools[2]
 dygraph(a_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token0Price)], 
         main = "Token 0 Price")  %>% 
-  dySeries("token0Price", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Price", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -164,19 +173,23 @@ pool <- a_pools[3]
 dygraph(a_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token0Price)], 
         main = "Token 0 Price")  %>% 
-  dySeries("token0Price", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Price", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -189,19 +202,23 @@ pool <- a_pools[4]
 dygraph(a_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 dygraph(a_dp_dex[poolId == pool, .(date, token0Price)], 
         main = "Token 0 Price")  %>% 
-  dySeries("token0Price", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Price", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -217,15 +234,21 @@ pool <- k_pools[1]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 ```
 
@@ -239,15 +262,20 @@ pool <- k_pools[2]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -260,15 +288,20 @@ pool <- k_pools[3]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -281,15 +314,20 @@ pool <- k_pools[4]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -302,15 +340,20 @@ pool <- k_pools[5]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -323,15 +366,20 @@ pool <- k_pools[6]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -344,15 +392,20 @@ pool <- k_pools[7]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -365,15 +418,20 @@ pool <- k_pools[8]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -386,15 +444,20 @@ pool <- k_pools[9]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -407,15 +470,20 @@ pool <- k_pools[10]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -428,15 +496,20 @@ pool <- k_pools[11]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -449,15 +522,20 @@ pool <- k_pools[12]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -470,15 +548,20 @@ pool <- k_pools[13]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -491,15 +574,20 @@ pool <- k_pools[14]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -512,15 +600,20 @@ pool <- k_pools[15]
 dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
         main = maintxt %+% pool,
         ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
         main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+
 
 dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
         main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+  dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
 
 ```
 
@@ -529,40 +622,27 @@ Row
 
 ```{r}
 
-pool <- k_pools[16]
-dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
-        main = maintxt %+% pool,
-        ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+if (length(k_pools) >= 16) {
 
-dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
-        main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
-
-dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
-        main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
-
-```
-
-Row
-----
-
-```{r}
-
-pool <- k_pools[17]
-dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
-        main = maintxt %+% pool,
-        ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
-
-dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
-        main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
-
-dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
-        main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+  pool <- k_pools[16]
+  dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
+          main = maintxt %+% pool,
+          ylab = "TVL in thousands ($)")  %>% 
+    dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+    dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+  
+  
+  dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
+          main = "Token 0 Amount")  %>% 
+    dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+    dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+  
+  
+  dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
+          main = "Token 1 Amount")  %>% 
+    dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+    dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+}
 
 ```
 
@@ -571,18 +651,53 @@ Row
 
 ```{r}
 
-pool <- k_pools[18]
-dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
-        main = maintxt %+% pool,
-        ylab = "TVL in thousands ($)")  %>% 
-  dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE)
+if (length(k_pools) >= 17) {
+  pool <- k_pools[17]
+  dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
+          main = maintxt %+% pool,
+          ylab = "TVL in thousands ($)")  %>% 
+    dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+    dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+  
+  
+  dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
+          main = "Token 0 Amount")  %>% 
+    dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+    dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+  
+  
+  dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
+          main = "Token 1 Amount")  %>% 
+    dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+    dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+}
 
-dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
-        main = "Token 0 Amount")  %>% 
-  dySeries("token0Amount", stepPlot = TRUE, fill = TRUE)
+```
 
-dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
-        main = "Token 1 Amount")  %>% 
-  dySeries("token1Amount", stepPlot = TRUE, fill = TRUE)
+Row
+----
+
+```{r}
+
+if (length(k_pools) >= 18) {
+  pool <- k_pools[18]
+  dygraph(k_dp_dex[poolId == pool, .(date, tvlUSD)], 
+          main = maintxt %+% pool,
+          ylab = "TVL in thousands ($)")  %>% 
+    dySeries("tvlUSD", stepPlot = TRUE, fill = TRUE) %>% 
+    dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+  
+  
+  dygraph(k_dp_dex[poolId == pool, .(date, token0Amount)], 
+          main = "Token 0 Amount")  %>% 
+    dySeries("token0Amount", stepPlot = TRUE, fill = TRUE) %>% 
+    dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+  
+  
+  dygraph(k_dp_dex[poolId == pool, .(date, token1Amount)], 
+          main = "Token 1 Amount")  %>% 
+    dySeries("token1Amount", stepPlot = TRUE, fill = TRUE) %>% 
+    dyOptions(maxNumberWidth = 20, stackedGraph = FALSE, colors=c("red"))
+}
 
 ```
