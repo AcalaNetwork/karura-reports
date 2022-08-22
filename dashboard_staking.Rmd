@@ -40,7 +40,7 @@ x <- GraphqlClient$new()
 
 ```{r tokens, cache = TRUE, include=FALSE}
 
-endpage <- 2e9
+endpage <- 100 # 2e9
 
 KSM_tokens <- getAccountBalance_acala_token("karura", window = 1, filter = 'filter: {tokenId: {in: ["KSM","LKSM"]}, total: {greaterThan: "0"}} ', endpage = endpage)
 KSM_token_wide <- dcast(KSM_tokens, accountId ~ tokenId, value.var = 'total')
@@ -52,25 +52,31 @@ DOT_token_wide <- dcast(DOT_tokens, accountId ~ tokenId, value.var = 'total')
 
 ```
 
-```{r loans, cache = TRUE, include=FALSE}
+```{r balances, cache = TRUE, include=FALSE}
 
 aUSD_karura <- getAccountBalance_acala_token("karura", window = 1, filter = 'filter: {tokenId: {in: ["ACA","KUSD","AUSD"]}, total: {greaterThan: "0"}} ', endpage = endpage)
 aUSD_karura_wide <- dcast(aUSD_karura, accountId ~ tokenId, value.var = 'total')
 
-
 aUSD_acala <- getAccountBalance_acala_token("acala", window = 1, filter = 'filter: {tokenId: {in: ["ACA","KUSD","AUSD"]}, total: {greaterThan: "0"}} ', endpage = endpage)
 aUSD_acala_wide <- dcast(aUSD_acala, accountId ~ tokenId, value.var = 'total')
 
+```
 
-loans_acala <- getPositions_acala_loan("acala", window = 1, filter = 'filter: {collateralId: {in: ["aUSD","kUSD","ACA","DOT","LDOT","KSM","LKSM"]}} ', endpage = endpage)
-loans_acala_wide <- dcast(loans_acala, ownerId ~ collateralId, value.var = c('debitAmount','depositAmount'))
+```{r loans, cache = TRUE, include=FALSE}
+
+loans_acala <- getLoansPositions_acala_loan("acala", window = 1, filter = 'filter: {collateralId: {in: ["aUSD","kUSD","ACA","DOT","LDOT","KSM","LKSM"]}} ', endpage = endpage)
+loans_acala_wide <- dcast(loans_acala, owner.id ~ collateral.id, value.var = c('debitAmount','depositAmount'))
 # sum(loans_acala_wide$depositAmount_LDOT > 0, na.rm = TRUE)
 
-loans_karura <- getPositions_acala_loan("karura", window = 1, filter = 'filter: {collateralId: {in: ["aUSD","kUSD","ACA","DOT","LDOT","KSM","LKSM"]}} ', endpage = endpage)
-loans_karura_wide <- dcast(loans_karura, ownerId ~ collateralId, value.var = c('debitAmount','depositAmount'))
+loans_karura <- getLoansPositions_acala_loan("karura", window = 1, filter = 'filter: {collateralId: {in: ["aUSD","kUSD","ACA","DOT","LDOT","KSM","LKSM"]}} ', endpage = endpage)
+loans_karura_wide <- dcast(loans_karura, owner.id ~ collateral.id, value.var = c('debitAmount','depositAmount'))
 # sum(loans_karura_wide$depositAmount_LKSM > 0, na.rm = TRUE)
 
-lp_acala <- getLoansDailyPositions_acala_loan("acala", window=1)
+```
+
+```{r daily, cache = TRUE, include=FALSE}
+
+lp_acala <- getLoansDailyPositions_acala_loan("acala", window=10)
 lp_acala[, depositAmount := as.numeric(depositAmount)]
 lp_acala[, debitAmount := as.numeric(debitAmount)]
 lp_acala_wide <- dcast(lp_acala, owner.id ~ collateral.id, value.var = c('debitAmount','depositAmount'), fun.aggregate = sum)
@@ -84,10 +90,11 @@ setnames(lp_karura_wide, names(lp_karura_wide), "lp_" %+% names(lp_karura_wide))
 
 ```
 
-```{r balances}
+```{r merge}
+
 
 karura_addr <- merge(KSM_token_wide, aUSD_karura_wide, by = 'accountId', all = TRUE)
-karura_addr <- merge(karura_addr, loans_karura_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
+karura_addr <- merge(karura_addr, loans_karura_wide, by.x = 'accountId', by.y = 'owner.id', all = TRUE)
 karura_addr <- merge(karura_addr, lp_karura_wide, by.x = 'accountId', by.y = 'lp_owner.id', all = TRUE)
 if (FALSE) {
   sum(karura_addr$LKSM > 0, na.rm = TRUE)
@@ -98,7 +105,7 @@ if (FALSE) {
 
 
 acala_addr <- merge(DOT_token_wide, aUSD_acala_wide, by = 'accountId', all.x = TRUE)
-acala_addr <- merge(acala_addr, loans_acala_wide, by.x = 'accountId', by.y = 'ownerId', all = TRUE)
+acala_addr <- merge(acala_addr, loans_acala_wide, by.x = 'accountId', by.y = 'owner.id', all = TRUE)
 acala_addr <- merge(acala_addr, lp_acala_wide, by.x = 'accountId', by.y = 'lp_owner.id', all = TRUE)
 if (FALSE) {
   sum(acala_addr$LDOT > 0, na.rm = TRUE)
@@ -106,7 +113,6 @@ if (FALSE) {
   sum(acala_addr$lp_depositAmount_LDOT > 0, na.rm = TRUE)
   sum(acala_addr$LDOT > 0 | acala_addr$depositAmount_LDOT > 0 | acala_addr$lp_depositAmount_LDOT > 0, na.rm = TRUE)
 }
-
 
 ```
 
@@ -197,7 +203,7 @@ dot_n <- acala_addr[, .N]
 acala_addr[, DOT_Status := '1) None']
 acala_addr[DOT > 0, DOT_Status := '2) DOT on Acala but no LDOT']
 acala_addr[LDOT > 0, DOT_Status := '3) LDOT Balance']
-acala_addr[depositAmount_LDOT > 0, DOT_Status := '4) LDOT Vault User']
+try(acala_addr[depositAmount_LDOT > 0, DOT_Status := '4) LDOT Vault User'])
 acala_addr[lp_depositAmount_LDOT > 0, DOT_Status := '5) LDOT LP User']
 dot_tbl <- acala_addr[, .N, by = 'DOT_Status'] %>%
   setorder(DOT_Status)
@@ -233,8 +239,8 @@ Row
 ausd_acala_n <- acala_addr[, .N]
 acala_addr[, AUSD_Status := '1) None']
 acala_addr[AUSD > 0, AUSD_Status := '2) AUSD Holder']
-acala_addr[depositAmount_ACA > 0 | depositAmount_DOT > 0 | depositAmount_LDOT > 0, AUSD_Status := '3) AUSD Vault Open']
-acala_addr[depositAmount_ACA > 0 | depositAmount_DOT > 0 | depositAmount_LDOT > 0 & (is.na(debitAmount_ACA) & is.na(debitAmount_DOT) & is.na(debitAmount_LDOT)), AUSD_Status := '4) Vault open but no AUSD minted']
+try(acala_addr[depositAmount_ACA > 0 | depositAmount_DOT > 0 | depositAmount_LDOT > 0, AUSD_Status := '3) AUSD Vault Open'])
+try(acala_addr[depositAmount_ACA > 0 | depositAmount_DOT > 0 | depositAmount_LDOT > 0 & (is.na(debitAmount_ACA) & is.na(debitAmount_DOT) & is.na(debitAmount_LDOT)), AUSD_Status := '4) Vault open but no AUSD minted'])
 ausd_tbl <- acala_addr[, .N, by = 'AUSD_Status'] %>%
   setorder(AUSD_Status)
 ausd_tbl2 <- acala_addr[, 100*round(.N / ausd_acala_n, 3), by = 'AUSD_Status'] %>%

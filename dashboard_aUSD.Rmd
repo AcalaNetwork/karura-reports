@@ -6,7 +6,10 @@ output:
     vertical_layout: scroll
     social: menu
     source_code: embed
-
+flexdashboard::valueBox(): 
+orientation: rows 
+source_code: embed 
+vertical_layout: fill
 ---
 
 ```{css custom1, echo=FALSE}
@@ -39,10 +42,9 @@ x <- GraphqlClient$new()
 # Helper function to concat
 `%+%` <- function(a, b) paste0(a, b)
 
-# window <- today() - as.Date("2021-12-31") + 1
-window <- 10
+window <- 90
 
-k_collateral <- getLoansDailyCollateral_acala_loan("karura", window)
+k_collateral <- getLoansDailyCollateral_acala_loan("Karura", window)
 k_current_collateral <- k_collateral[Date == max(Date), .(collateral.id, depositVolumeUSD)]
 k_current_collateral <- k_current_collateral[depositVolumeUSD > 0]
 k_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 3) * 100, by = "Date"]
@@ -65,31 +67,31 @@ max(a_collateral$Date)
 both_collateral <- rbind(k_collateral, a_collateral)
 both_collateral[, pct := NULL]
 both_collateral[, labs := NULL]
-both_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 3) * 100]
+both_collateral[, pct := round(depositVolumeUSD / sum(depositVolumeUSD), 3) * 100, by = "timestamp"]
 both_collateral[, labs := pct %+% "%"]
 setorder(both_collateral, pct)
 both_collateral <- both_collateral[depositVolumeUSD > 0]
 both_current_collateral <- both_collateral[depositVolumeUSD > 0 & Date == max(Date), .(collateral.id, depositVolumeUSD, pct, labs)]
 
-# Collaeralization Ratio
+# Collateralization Ratio
 k_cratio <- k_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by = Date] %>%
-  setnames("V1", "Karura Collaeralization Ratio")
+  setnames("V1", "Karura Collateralization Ratio")
   
 a_cratio <- a_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by = Date] %>%
-  setnames("V1", "Acala Collaeralization Ratio")
+  setnames("V1", "Acala Collateralization Ratio")
   
 both_cratio <- both_collateral[, sum(depositVolumeUSD) / sum(debitVolumeUSD), by = Date] %>%
-  setnames("V1", "Combined Collaeralization Ratio")
+  setnames("V1", "Combined Collateralization Ratio")
 
 # Stablecoin percentage of collateral
-k_pct_stablecoin <- k_collateral[, sum(debitVolumeUSD) / sum(depositVolumeUSD), by = Date] %>%
-  setnames("V1", "Combined Stablecoin Percentage of Collaeral")
+k_pct_stablecoin <- k_collateral[, (sum(debitVolumeUSD) / sum(depositVolumeUSD))*100, by = Date] %>%
+  setnames("V1", "Karura Stablecoin Percentage of Collateral")
 
-a_pct_stablecoin <- a_collateral[, sum(debitVolumeUSD) / sum(depositVolumeUSD), by = Date] %>%
-  setnames("V1", "Combined Stablecoin Percentage of Collaeral")
+a_pct_stablecoin <- a_collateral[, (sum(debitVolumeUSD) / sum(depositVolumeUSD))*100, by = Date] %>%
+  setnames("V1", "Acala Stablecoin Percentage of Collateral")
 
-both_pct_stablecoin <- both_collateral[, sum(debitVolumeUSD) / sum(depositVolumeUSD), by = Date] %>%
-  setnames("V1", "Combined Stablecoin Percentage of Collaeral")
+both_pct_stablecoin <- both_collateral[, (sum(debitVolumeUSD) / sum(depositVolumeUSD))*100, by = Date] %>%
+  setnames("V1", "Combined Stablecoin Percentage of Collateral")
 
 a_params_current <- getLoansCollateralParams_acala_loan("Acala")
 k_params_current <- getLoansCollateralParams_acala_loan("Karura")
@@ -146,6 +148,7 @@ dailyTVL <- merge(adaily, kdaily, by = 'Date')
 
 library(reticulate)
 # use_python("/opt/homebrew/bin/python3.9")
+
 ```
 
 ```{python, include=FALSE}
@@ -169,9 +172,6 @@ def getFeePayment(network):
         data.append(outi)
     out = pd.DataFrame(data)
     return out
-
-
-
 
 
 def getTotalIssuance(network):
@@ -214,9 +214,59 @@ def getTotalIssuance(network):
     setnames("aUSD", "aUSD_Acala")
   dailyTVL[, aUSD_Total := aUSD_Karura + aUSD_Acala]
   
-  # fwrite(x = dailyTVL, file = "aUSD_Issuance.csv")
+```
+
+# Overview {.tabset}
+
+Row
+----
+
+```{r}
+myFormat <- function(x, prefix = "", suffix = "") prefix %+% (x %>% tail(1) %>% as.numeric %>% round(2) %>% format(nsmall=1, big.mark=",")) %+% suffix
+
+ausd_total <- myFormat(dailyTVL[, aUSD_Total], "$", " USD")
+ausd_karura <- myFormat(dailyTVL[, aUSD_Karura], "$", " USD")
+ausd_acala <- myFormat(dailyTVL[, aUSD_Acala], "$", " USD")
+
+cratio_combined <- myFormat(both_cratio$`Combined Collateralization Ratio`, suffix = "x")
+cratio_karura <- myFormat(k_cratio$`Karura Collateralization Ratio`, suffix = "x")
+cratio_acala <- myFormat(a_cratio$`Acala Collateralization Ratio`, suffix = "x")
+
+pct_combined <- myFormat(both_pct_stablecoin$`Combined Stablecoin Percentage of Collateral`, suffix="%")
+pct_karura <- myFormat(k_pct_stablecoin$`Karura Stablecoin Percentage of Collateral`, suffix="%")
+pct_acala <- myFormat(a_pct_stablecoin$`Acala Stablecoin Percentage of Collateral`, suffix="%")
 
 ```
+
+### aUSD Outstanding
+
+`r valueBox(value = ausd_total)`
+
+### aUSD Collateral Ratio
+
+`r valueBox(value = cratio_combined)`
+
+### Percentage of Collateral
+
+`r valueBox(value = pct_combined)`
+
+
+Row
+----
+
+* As of *`r tail(dailyTVL$Date, 1)`*, the combined aUSD value minted is *`r ausd_total`*.  
+
+* *`r ausd_acala`* on Acala (as of block number *`r tail(dailyTVL$blockAcala, 1)`*) and *`r ausd_karura`* on Karura (as of block number *`r tail(dailyTVL$blockKarura, 1)`*). 
+
+* The collateralizaion ratio is the value of the collateteral deposited divided by the amount of aUSD minted.  
+
+* The combined collateralization ratio is *`r cratio_combined`*.  
+
+* The ratio for the individual parachains are as follows: *`r cratio_acala`* for Acala and *`r cratio_karura`* for Karura.
+
+* The reciprocal of the collareralization ratio shows the stablecoin issuance as a percentage of collateral, which is *`r pct_combined`* in aggregate.  
+
+* Specifically, *`r pct_acala`* for Acala and *`r pct_karura`* for Karura.
 
 # Charts {.tabset}
 
@@ -252,9 +302,9 @@ both_df <- as.data.frame(both_current_collateral)
 
 ggpie(a_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(2, "bold", "red"), main = "aUSD collateral on Acala")
 
-ggpie(k_df, "pct", label = "labs", fill = "collateral.id", lab.font = c(2, "bold", "red"), main = "aUSD collateral on Acala")
+ggpie(k_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(2, "bold", "red"), main = "aUSD collateral on Karura")
 
-ggpie(both_df, "pct", label = "labs", fill = "collateral.id", lab.font = c(2, "bold", "red"), main = "aUSD collateral in Aggregate")
+ggpie(both_df, "pct", label = "labs", fill = "collateral.id", color = "white", lab.font = c(2, "bold", "red"), main = "aUSD collateral in Aggregate")
 
 ```
 
@@ -310,6 +360,37 @@ axis.title.y = element_text(color="#993333", size=14, face="plain")
 
 ```
 
+
+Row
+----
+
+```{r collateralization_ratio, out.width = '33%'}
+
+ggline(a_cratio, x = "Date", y = "Acala Collateralization Ratio", title = "Acala Collateralization Ratio", color = "red", ylab = "depositVolumeUSD / debitVolumeUSD", xlab = "")
+
+ggline(k_cratio, x = "Date", y = "Karura Collateralization Ratio", title = "Karura Collateralization Ratio", color = "blue", ylab = "depositVolumeUSD / debitVolumeUSD", xlab = "")
+
+ggline(both_cratio, x = "Date", y = "Combined Collateralization Ratio", title = "Combined Collateralization Ratio", color = "orange", ylab = "depositVolumeUSD / debitVolumeUSD", xlab = "")
+
+```
+
+
+Row
+----
+
+```{r pct_of_collatearl, out.width = '33%'}
+
+# Stablecoin percentage of collateral
+
+ggline(a_pct_stablecoin, x = "Date", y = "Acala Stablecoin Percentage of Collateral", title = "Acala Stablecoin percentage of collateral", color = "red", ylab = "debitVolumeUSD / depositVolumeUSD", xlab = "")
+
+ggline(k_pct_stablecoin, x = "Date", y = "Karura Stablecoin Percentage of Collateral", title = "Karura Stablecoin percentage of collateral", color = "blue", ylab = "debitVolumeUSD / depositVolumeUSD", xlab = "")
+
+ggline(both_pct_stablecoin, x = "Date", y = "Combined Stablecoin Percentage of Collateral", title = "Combined Stablecoin percentage of collateral", color = "orange", ylab = "debitVolumeUSD / depositVolumeUSD", xlab = "")
+
+```
+
+
 # Minting data {.tabset}
 
 Row
@@ -353,13 +434,13 @@ a_collateral_wide[, Total := rowSums(a_collateral_wide[, -1])]
 both_collateral_wide <- dcast(both_collateral, timestamp ~ collateral.id, value.var = "depositVolumeUSD", fun.aggregate = sum)
 both_collateral_wide[, Total := rowSums(both_collateral_wide[, -1])]
 
-knitr::kable(a_collateral_wide, escape = FALSE, format.args = list(big.mark = ","), caption = "aSUD Collateral on Acala") %>%
+knitr::kable(a_collateral_wide, escape = FALSE, format.args = list(big.mark = ","), caption = "aUSD Collateral on Acala") %>%
   kable_styling()
 
-knitr::kable(k_collateral_wide, escape = FALSE, format.args = list(big.mark = ","), caption = "aSUD Collateral on Karura") %>%
+knitr::kable(k_collateral_wide, escape = FALSE, format.args = list(big.mark = ","), caption = "aUSD Collateral on Karura") %>%
   kable_styling()
 
-knitr::kable(both_collateral_wide, escape = FALSE, format.args = list(big.mark = ","), caption = "aSUD Collateral in Aggregate") %>%
+knitr::kable(both_collateral_wide, escape = FALSE, format.args = list(big.mark = ","), caption = "aUSD Collateral in Aggregate") %>%
   kable_styling()
 
 ```
